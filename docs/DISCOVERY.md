@@ -1,0 +1,27 @@
+# Discovery — GradeLink
+
+- **Project name:** GradeLink
+- **Slug:** gradelink
+- **Pitch:** A test-making web app that lets teachers build tests from a reusable question bank, share them by link, and get automatic grades and analytics.
+- **Problem:** Teachers can quiz students with tools like Google Forms, Typeform, or Kahoot, but those tools fall short on reusable question banks, grading, and analytics.
+- **Target users:** Teachers testing knowledge (primary), and students who take the tests through a link with no account.
+- **Main outcome / goal:** A teacher can create a test, share a link, and have grades ready automatically, with no manual grading.
+- **Kind of software:** Fullstack web app that also works on phones
+- **MVP scope:**
+  - Teacher sign-in
+  - Question bank with topics or tags
+  - Tests built from the bank and shared by public link
+  - Students enter a name, answer, and submit, then see their score immediately
+  - Auto-grading for multiple choice, true/false, and short exact-match answers, with partial credit on multiple-answer questions
+  - Analytics for class scores and per-question correct rates
+- **Out of scope:**
+  - Open-text and manual grading — they break "grades ready automatically"
+  - Rubrics — not needed without open-text grading
+  - Randomized tests — cut from the first version
+  - Rosters and identity checks — name entry was chosen
+  - Time limits and other exam conditions — cut from the first version
+  - Teacher-controlled score release — immediate scores were chosen
+- **Preferred stack:** No preference
+- **Team and timeline:** Solo; a few weekends
+- **Hard constraints:** None (SECURITY.md will include a short note on student data privacy)
+- **Repo shape preference:** Let Claude recommend

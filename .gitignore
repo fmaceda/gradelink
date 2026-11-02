@@ -1,0 +1,17 @@
+node_modules/
+dist/
+coverage/
+*.tsbuildinfo
+.env
+.env.*
+!.env.example
+playwright-report/
+test-results/
+.DS_Store
+*.log
+
+# Pipeline state from the generating toolkit
+.genesis/
+
+# Local Claude Code settings (docs/, CLAUDE.md and the rest of .claude/ stay tracked)
+.claude/settings.local.json

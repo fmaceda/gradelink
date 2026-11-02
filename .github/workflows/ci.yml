@@ -1,0 +1,42 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:17
+        env:
+          POSTGRES_USER: ci
+          POSTGRES_PASSWORD: ci-throwaway
+          POSTGRES_DB: gradelink_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U ci"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    env:
+      DATABASE_URL: postgres://ci:ci-throwaway@localhost:5432/gradelink_test
+      BETTER_AUTH_SECRET: ci-throwaway-secret-not-for-production
+      BETTER_AUTH_URL: http://localhost:3000
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+      # Needs a committed package-lock.json (created when TASK-001 runs the first install).
+      - run: npm ci
+      - run: npm run typecheck
+      - run: npm run lint
+      - run: npm test
+      - run: npm run build
+      # Playwright joins this workflow in TASK-021.

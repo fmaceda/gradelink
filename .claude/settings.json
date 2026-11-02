@@ -1,0 +1,62 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(git status *)",
+      "Bash(git diff *)",
+      "Bash(git log *)",
+      "PowerShell(git status *)",
+      "PowerShell(git diff *)",
+      "PowerShell(git log *)",
+      "Bash(npm test)",
+      "PowerShell(npm test)",
+      "Bash(npm test *)",
+      "PowerShell(npm test *)",
+      "Bash(npm run lint)",
+      "PowerShell(npm run lint)",
+      "Bash(npm run lint *)",
+      "PowerShell(npm run lint *)",
+      "Bash(npm run typecheck)",
+      "PowerShell(npm run typecheck)",
+      "Bash(npm run typecheck *)",
+      "PowerShell(npm run typecheck *)",
+      "Bash(npm run build)",
+      "PowerShell(npm run build)",
+      "Bash(npm run build *)",
+      "PowerShell(npm run build *)",
+      "Bash(npx biome *)",
+      "PowerShell(npx biome *)",
+      "Bash(npx tsc *)",
+      "PowerShell(npx tsc *)",
+      "Bash(npx vitest *)",
+      "PowerShell(npx vitest *)"
+    ],
+    "ask": [
+      "Bash(git push *)",
+      "PowerShell(git push *)",
+      "Bash(npm install *)",
+      "PowerShell(npm install *)",
+      "Bash(npm install)",
+      "PowerShell(npm install)",
+      "Bash(npm ci *)",
+      "PowerShell(npm ci *)",
+      "Bash(npm ci)",
+      "PowerShell(npm ci)",
+      "Bash(npm audit *)",
+      "PowerShell(npm audit *)",
+      "Bash(npm view *)",
+      "PowerShell(npm view *)",
+      "Bash(npx playwright install *)",
+      "PowerShell(npx playwright install *)",
+      "Bash(npx shadcn *)",
+      "PowerShell(npx shadcn *)",
+      "Bash(npx drizzle-kit *)",
+      "PowerShell(npx drizzle-kit *)"
+    ],
+    "deny": [
+      "Read(./.env)",
+      "Read(./.env.*)",
+      "Edit(./.env)",
+      "Edit(./.env.*)"
+    ]
+  }
+}
