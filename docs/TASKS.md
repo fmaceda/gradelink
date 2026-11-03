@@ -42,10 +42,10 @@ Get a local Postgres running and prove Drizzle ORM 0.45.4, drizzle-kit 0.31.11, 
 6. With `NODE_ENV=production`, a missing, empty or known-placeholder `BETTER_AUTH_SECRET` stops startup, and a real value starts normally.
 7. A search finds `process.env` only in `env.ts`, plus any exception agreed for `drizzle.config.ts`.
 
-- [ ] Implement
-- [ ] Test
-- [ ] Review
-- [ ] Complete
+- [x] Implement
+- [x] Test
+- [x] Review
+- [x] Complete
 
 ### TASK-003: Prove Better Auth on Express 5 and set the auth config
 

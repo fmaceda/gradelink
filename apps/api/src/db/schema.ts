@@ -1,2 +1,2 @@
-// Drizzle tables. Placeholder; see ARCHITECTURE.md "Data model" and TASKS.md.
+// Drizzle tables. See ARCHITECTURE.md "Data model" and TASKS.md.
 export {};

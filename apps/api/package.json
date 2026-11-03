@@ -4,12 +4,12 @@
   "version": "0.0.0",
   "type": "module",
   "scripts": {
-    "dev": "tsx watch src/index.ts",
-    "test": "vitest run --passWithNoTests",
+    "dev": "tsx watch --env-file-if-exists=../../.env src/index.ts",
+    "test": "node --env-file-if-exists=../../.env ../../node_modules/vitest/vitest.mjs run --passWithNoTests",
     "typecheck": "tsc --noEmit",
     "build": "tsc -p tsconfig.build.json",
-    "db:generate": "drizzle-kit generate",
-    "db:migrate": "drizzle-kit migrate"
+    "db:generate": "node --env-file-if-exists=../../.env ../../node_modules/drizzle-kit/bin.cjs generate",
+    "db:migrate": "node --env-file-if-exists=../../.env ../../node_modules/drizzle-kit/bin.cjs migrate"
   },
   "dependencies": {
     "@gradelink/shared": "*",
@@ -22,6 +22,7 @@
   "devDependencies": {
     "@types/express": "5.0.6",
     "@types/node": "26.6.6",
+    "@types/pg": "8.23.1",
     "drizzle-kit": "0.31.11",
     "tsx": "4.23.15",
     "vitest": "5.0.5"
