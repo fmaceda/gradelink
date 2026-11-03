@@ -126,6 +126,7 @@ gradelink/                      # = output/gradelink/ (the project root)
 │   │   ├── src/
 │   │   │   ├── index.ts        # process entry: load env, start server
 │   │   │   ├── app.ts          # builds the Express app (auth mount, routers, static + SPA fallback)
+│   │   │   ├── errors.ts       # AppError, thrown by services and handlers; imports nothing from Express
 │   │   │   ├── auth.ts         # Better Auth instance
 │   │   │   ├── db/
 │   │   │   │   ├── client.ts   # pg pool + Drizzle instance
@@ -195,7 +196,7 @@ Security-adjacent rules follow OWASP ASVS and OWASP Session Management guidance,
 4. **Share tokens are random and at least 128 bits.** Generate them with `node:crypto` (`randomBytes(16)` or longer, URL-safe encoding). Never derive them from ids, titles, or timestamps, and never use `Math.random`.
 5. **Student-facing and teacher-facing schemas are separate in `packages/shared`** (`student/` and `teacher/`). Student schemas must not extend or import from teacher schemas.
 6. **Sessions are same-origin with no CORS.** Do not add the `cors` package or CORS headers. In dev, use Vite `server.proxy`, not cross-origin requests.
-7. **Express serves the built client and the API under `/api`.** All API routes are mounted under `/api`; unknown `/api/*` paths return a JSON 404, never the SPA fallback.
+7. **Express serves the built client and the API under `/api`.** All API routes are mounted under `/api`; unknown `/api/*` paths return a JSON 404, never the SPA fallback. The exception is `/api/auth/*`, where Better Auth answers unknown paths with its own JSON shape, not `{ error: { code, message } }`.
 8. **Mount `toNodeHandler(auth)` at `/api/auth/*splat` before `express.json()`.**
 9. **Route handlers contain no business logic or direct SQL.** They validate input with shared Zod schemas and call a service. Only `services/` and `db/` import Drizzle.
 10. **UI components must not call `fetch` or contain data access.** Only `apps/web/src/lib/api.ts` talks to the API, and it parses every response with a shared schema.

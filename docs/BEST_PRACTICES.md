@@ -98,6 +98,7 @@ Practices that are already security-critical appear above and are not repeated: 
 - **BP-043 (MUST)** Do not log answer keys, snapshot `content`, share tokens, passwords, session cookies, or `BETTER_AUTH_SECRET`. Student names and raw responses are logged only if there is a specific debugging need, and not at default log level. Do not include a share token in an error message or URL logged server-side beyond what the access log necessarily records.
 - **BP-044 (SHOULD)** Read environment variables in one module (for example `apps/api/src/env.ts`) that parses `process.env` with a Zod schema at startup and fails fast on missing values. Do not read `process.env` elsewhere, and do not give secrets default values. The one exception is `apps/api/drizzle.config.ts`, which `drizzle-kit` loads outside the app: it reads only `DATABASE_URL` and throws if it is missing.
 - **BP-045 (SHOULD)** Error responses are a uniform JSON shape (`{ error: { code, message } }`) with no stack traces, SQL, or internal ids in production. An unknown share token, a draft test, and a nonexistent test return the same 404 so tokens cannot be probed.
+- **BP-046 (SHOULD)** Mount routers on static paths, and put parameters such as `:token` only on the routes inside them. Request logs record the route pattern, so a share token must never be able to reach it through a dynamic mount path.
 
 ## Anti-Patterns to Reject
 
@@ -134,6 +135,7 @@ Practices that are already security-critical appear above and are not repeated: 
 - [ ] BP-020 — `fetch` appears only in `lib/api.ts`, with relative `/api` paths and schema-parsed responses.
 - [ ] BP-022 — No `dangerouslySetInnerHTML` or `innerHTML` with teacher or student text.
 - [ ] BP-043 — No logging of keys, snapshot content, tokens, passwords, or cookies.
+- [ ] BP-046 — Router mount paths are static.
 - [ ] BP-003 — `switch` on question type is exhaustive with a `never` check.
 - [ ] BP-032 — Submit re-checks `published` status inside the transaction.
 - [ ] BP-034 — Analytics use SQL aggregates; no per-row queries or JS loops over all attempts.

@@ -124,7 +124,7 @@ This limit does not weaken the controls above. Anonymity of students is a trust 
 - **Short answers:** length-capped and validated as strings. Normalization for grading (trim, collapse whitespace, case-insensitive) happens in the grading module and never changes what is stored in `response`.
 - **Question content (teacher-authored):** prompts and options are plain text, length-capped, and rendered as text, never as HTML. The shared Zod schemas validate the JSONB shape for `options` and `answer_key` per `type` on every read and write (ARCHITECTURE.md), so malformed or unexpected JSONB is rejected.
 - **Identifiers:** ids from path or query are validated as the expected type (UUID or integer, per the schema) before reaching a query. Share tokens are validated for length and character set before lookup.
-- **Output encoding:** React's default escaping is the primary defense. Set a Content-Security-Policy with no `unsafe-inline` script (see Before Production Checklist).
+- **Output encoding:** React's default escaping is the primary defense. Set a Content-Security-Policy with no `unsafe-inline` script (see Before Production Checklist). `style-src` may allow `unsafe-inline` only if TASK-005 proves Radix needs it, and that task records the reason and the check here.
 
 ## API Request & Parameter Validation
 
