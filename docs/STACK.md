@@ -62,7 +62,6 @@
   - shadcn/ui setup with Tailwind 4.3 and React 19.3: pending, TASK-004.
   - React Router 8 API in SPA mode: pending, TASK-004.
   - Better Auth mounting on Express 5: pending, TASK-003.
-  - Drizzle's peerDependencies: pending, TASK-002.
 - **Proven in TASK-001 (2026-11-03, Node 26.13.0, npm 11.20.0):**
   - Registry recheck: every pinned version in this file exists. All are the latest except Tailwind and @tailwindcss/vite (4.3.4 is out) and Vitest (5.1.0 is out). The pins stay; TypeScript's latest is 7.0.2, kept at 6.0.3 as decided above.
   - `@types/node` has no 26.13.x release, so it pins the highest 26.x, 26.6.6. `npm ls` shows one version of it and of TypeScript.
@@ -71,6 +70,12 @@
   - `npm ci` succeeds after clearing `node_modules`, leaves `package-lock.json` unchanged, and all the checks above pass on that install.
   - `apps/web` needs @types/react and @types/react-dom to typecheck, so they are added as exact pins (not in the original stack list).
   - TypeScript 6 includes no global types by default, so `apps/api` sets `types: ["node"]` and `apps/web` sets `types: ["vite/client"]`.
+- **Proven in TASK-002 (2026-11-03, local PostgreSQL 18.4):**
+  - Peers: `drizzle-orm@0.45.4` lists `pg >=8` and `@types/pg *`, among optional drivers; `drizzle-kit@0.31.11` lists none; `pg@8.23.1` lists only the optional `pg-native`. `npm ls` shows none invalid. `@types/pg` 8.23.1 is added as an exact pin because the `pg` pool needs its types.
+  - Migrations: `npm run db:generate -w @gradelink/api` wrote the SQL, `npm run db:migrate -w @gradelink/api` applied it, and a second run changed nothing. `0000` creates a throwaway `stack_proof` table and `0001` drops it, so the first real schema starts empty.
+  - A parameterized query through Drizzle succeeds (`apps/api/test/db.test.ts`). The pool `max` is 5, provisional until TASK-039 checks Railway's connection limit.
+- **Local Postgres:** an installed Windows service, not a container. Start it with `Start-Service postgresql-x64-18`, as an administrator if needed. The database named in `.env` must exist before migrating (`CREATE DATABASE gradelink`). CI uses `postgres:17`, and Railway's major version is unconfirmed.
+- **Environment:** `apps/api/src/env.ts` also accepts optional `NODE_ENV` (default `development`) and `PORT` (default 3000). The API's npm scripts load the root `.env` with Node's `--env-file-if-exists`, so no `dotenv` dependency is needed and CI and production use real environment variables.
 - **Install notes (2026-11-03):**
   - `npm install` on Node 22.23.2 / npm 10.9.8 crashed with `Cannot read properties of null (reading 'edgesOut')` while resolving Vitest's peers. Cause unverified, not reproduced on Node 26.13.0 / npm 11.20.0. Use Node 26 per `.nvmrc`.
   - npm 11.20.0 warns that esbuild's postinstall scripts were not run. tsx, Vite, and the build still work without them.

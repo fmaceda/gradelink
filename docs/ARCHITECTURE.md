@@ -24,10 +24,11 @@ Supporting tooling (restated from the confirmed stack): Vitest 5.0.5 and Playwri
 - shadcn/ui setup with Tailwind 4.3 and React 19.3 (TASK-004).
 - React Router 8 API in SPA mode (TASK-004).
 - Better Auth mounting on Express 5 (TASK-003).
-- Drizzle's peerDependencies could not be read, so Drizzle compatibility with the rest of the stack is unproven (TASK-002).
 - Railway Postgres major version, backups, and pricing; Hobby commercial-use terms. Check before storing real student data.
 
 **Proven in TASK-001 (2026-11-03):** the pinned versions exist on the npm registry, and TypeScript, Biome, Vitest, the production build, and `tsx` running Express 5 all work together on Node 26.13.0. `STACK.md` holds the details.
+
+**Proven in TASK-002 (2026-11-03):** Drizzle ORM, drizzle-kit, and `pg` work together: migrations generate and apply, and a query runs. `STACK.md` holds the details.
 
 ## System Architecture
 

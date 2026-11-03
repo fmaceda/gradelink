@@ -96,7 +96,7 @@ Coding-level guidance follows OWASP ASVS (V5 validation and encoding, V4 access 
 Practices that are already security-critical appear above and are not repeated: BP-005 (input validation), BP-012 (session identity), BP-013 (parameterized SQL), BP-022 (output encoding), BP-028 and BP-029 (answer-key and token handling), BP-031 (per-teacher authorization).
 
 - **BP-043 (MUST)** Do not log answer keys, snapshot `content`, share tokens, passwords, session cookies, or `BETTER_AUTH_SECRET`. Student names and raw responses are logged only if there is a specific debugging need, and not at default log level. Do not include a share token in an error message or URL logged server-side beyond what the access log necessarily records.
-- **BP-044 (SHOULD)** Read environment variables in one module (for example `apps/api/src/env.ts`) that parses `process.env` with a Zod schema at startup and fails fast on missing values. Do not read `process.env` elsewhere, and do not give secrets default values.
+- **BP-044 (SHOULD)** Read environment variables in one module (for example `apps/api/src/env.ts`) that parses `process.env` with a Zod schema at startup and fails fast on missing values. Do not read `process.env` elsewhere, and do not give secrets default values. The one exception is `apps/api/drizzle.config.ts`, which `drizzle-kit` loads outside the app: it reads only `DATABASE_URL` and throws if it is missing.
 - **BP-045 (SHOULD)** Error responses are a uniform JSON shape (`{ error: { code, message } }`) with no stack traces, SQL, or internal ids in production. An unknown share token, a draft test, and a nonexistent test return the same 404 so tokens cannot be probed.
 
 ## Anti-Patterns to Reject
