@@ -73,6 +73,32 @@ Mount `toNodeHandler(auth)` at `/api/auth/*splat` before `express.json()` and co
 
 Stand up `apps/web` with Vite, React 19.3, React Router 8 in library/data mode (`createBrowserRouter` plus loaders and actions, no framework-mode features), Tailwind 4.3 via `@tailwindcss/vite` with an `@theme` block holding the DESIGN.md tokens, and shadcn/ui through its CLI (try Button, Dialog, Sheet). Add the Vite `server.proxy` for `/api`. In `apps/api/src/app.ts`, serve `apps/web/dist` with SPA fallback, and make unknown `/api/*` return a JSON 404, never the SPA fallback. Separately, in a throwaway scratch project or branch, install Recharts and render one chart under React 19.3 to prove compatibility; do not add Recharts to the repo yet. If shadcn/ui or Recharts fails, record the fallback from DESIGN.md (plain Tailwind elements, table-only analytics) and update the affected docs.
 
+**Story:** As a developer, I want the web stack and Express serving the built SPA proven by running them, so that teacher and student screens start from a known-good base.
+
+**Acceptance criteria:**
+
+1. Router: `apps/web` uses `createBrowserRouter` and `RouterProvider` with no framework-mode features. At least one `loader` and one `action` work in the browser, and an unknown client path doesn't render a blank page. The import path and API shape are recorded in `docs/STACK.md`.
+2. Tailwind: `styles.css` has `@import "tailwindcss"` and an `@theme` block with the `docs/DESIGN.md` tokens. There's no `tailwind.config.js`, PostCSS config or `@tailwind` directive, and a built page shows a token colour correctly.
+3. shadcn/ui: it's added through its CLI under `src/components/ui/`. Button, Dialog and Sheet render, Dialog and Sheet close with Escape, and there are no console errors or peer warnings.
+4. Quality gates: typecheck, lint and build pass with the new files.
+5. Proxy: a real API request through Vite's `/api` proxy returns the API's response, and the target matches the API's port.
+6. Dev origin (trusting `localhost:5173` is already done): sign-in through the proxy succeeds and sets an HttpOnly, SameSite=Lax, non-Secure cookie, and a foreign `Origin` gets 403. A Vitest case covers the development branch, and the proxy half is a recorded manual check.
+7. Express serving: `createApp()` serves `apps/web/dist`, with `index.html` as the fallback for GET and HEAD on non-`/api` paths, including `/` and `/t/<token>`. A missing file under `/assets/` gets a 404, not `index.html`. Any method on an unknown `/api/*` path gets a JSON 404, never HTML. The order is auth, `express.json`, routers, `/api` 404, static files, fallback.
+8. Tests use a fixture directory rather than the real build, because CI tests run before `npm run build`. The API also starts and works with no `dist`.
+9. `/api/hello` is removed, and `smoke.test.ts:22` and `auth.test.ts:157` are replaced.
+10. Recharts: one chart is rendered under React 19.3.1 in a scratch project, with the version, peer ranges and result recorded. It isn't added to the repo.
+11. Docs: `docs/STACK.md`, `docs/ARCHITECTURE.md`, `docs/BEST_PRACTICES.md` and `CLAUDE.md` are updated. If shadcn or Recharts fails, the `docs/DESIGN.md` fallback is recorded.
+
+**Decisions (accepted 2026-11-03):**
+
+- The proof `loader` and `action` go through `lib/api.ts`, calling an existing route such as `/api/auth/get-session` with a temporary local Zod schema, or use in-memory data. No endpoint schemas in `packages/shared` yet, and no `fetch` in route modules.
+- The Vite proxy reads `PORT` with a 3000 fallback, recorded as a BP-044 exception, and `strictPort: true` is set.
+- Biome formats the generated shadcn files; they aren't excluded.
+- The `@/` alias uses tsconfig `paths` without `baseUrl`, with a matching Vite `resolve.alias`. Confirm that shadcn's CLI accepts it.
+- The API serves `dist` whenever it exists, with no `NODE_ENV` check.
+- Unknown `/api/auth/*` paths keep Better Auth's own response shape (ARCHITECTURE rule 7). A test proves the response is JSON and never HTML.
+- The JSON 404 test also covers a wrong method on a known path. TASK-037 confirms this across all routes.
+
 - [ ] Implement
 - [ ] Test
 - [ ] Review
@@ -82,6 +108,37 @@ Stand up `apps/web` with Vite, React 19.3, React Router 8 in library/data mode (
 
 Verify helmet and express-rate-limit versions work with Express 5 by running them. Wire helmet with a CSP that allows no `unsafe-inline` script and a referrer policy that does not leak `/t/<token>` URLs; no `cors` package. Set `express.json({ limit })` to 100 KB after the auth mount, returning 413 when exceeded, and accept only `application/json` on body routes. Add the shared validation middleware (Zod over body, params, query), a typed `AppError`, and one last four-argument error handler returning `{ error: { code, message } }` with no stack traces, SQL, or snapshot content. Add request logging of method, route pattern (for example `/api/public/tests/:token`, never the raw URL), status, and request id only (no bodies, cookies, tokens, or keys). Set `trust proxy` from an env value. Actual per-route limits come in TASK-022.
 
+**Story:** As a developer, I want safe defaults for headers, bodies, validation, errors and logging, so that every later route inherits them and can't leak stack traces, SQL, answer keys or share tokens.
+
+**Acceptance criteria:**
+
+1. Install proof: helmet 8.3.0 and express-rate-limit 8.7.3 install with no invalid peers, and a real request through each works on Express 5.3.0. Results are recorded in `docs/STACK.md` and `docs/ARCHITECTURE.md`.
+2. helmet runs before the auth mount. The CSP has no `unsafe-inline` in `script-src`, and the referrer policy doesn't leak `/t/<token>` URLs. Tests check the headers on an API response and on the SPA fallback, and no CORS headers are set.
+3. Body limit (the 100 KB limit is already set): a body just under the limit is accepted, one over gets a JSON 413, and malformed JSON gets a JSON 400 with no parser detail.
+4. Content type: a body that isn't `application/json` is rejected with a JSON error, while bodyless POSTs and `/api/auth/*` still work.
+5. Errors: `AppError` carries a status, code and safe message, and one last four-argument handler returns `{ error: { code, message } }`. A test throws an error containing a fake token, SQL and a stack, and none of it reaches the response or stderr. A Drizzle-style error is logged by code only.
+6. Headers already sent: the handler ends the response and never calls `next(error)`.
+7. Validation: Zod middleware covers body, params and query. Failures return a JSON 400 with no echoed values, and handlers get parsed values without `as` casts.
+8. Request logging: one line per request, holding only method, route pattern, status and a server-generated request ID. A test sends a fake token, body, cookie and `Authorization` header, and none of them appear in the log. Unmatched paths log a fixed pattern, and no IP is logged.
+9. `trust proxy` comes from one parsed value in `env.ts` with a safe default. Tests show how it changes `req.ip`, and the variable is added to `.env.example` and CI.
+10. Rate-limit plumbing: no per-route limits yet. Any factory returns the shared 429 body and never counts `/api/auth/*`, which already has Better Auth's own limiter with different thresholds.
+11. Vitest covers all new behaviour, and tests, typecheck and lint pass.
+
+**Decisions (accepted 2026-11-03):**
+
+- Deleting or wrapping `handleAuthError` is the developer's choice. Unexpected `/api/auth/*` failures still return the generic 500 and log only a code.
+- `TRUST_PROXY` is a non-negative integer, default 0, and anything else is rejected. TASK-038 sets Railway's value.
+- Error bodies may carry an optional `fields` entry for validation messages. Messages never include submitted values, the schema lives in `packages/shared`, and public routes allow-list it.
+- One shared enum of error codes: `VALIDATION_ERROR`, `UNAUTHENTICATED`, `NOT_FOUND`, `TEST_CLOSED`, `PAYLOAD_TOO_LARGE`, `UNSUPPORTED_MEDIA_TYPE`, `RATE_LIMITED`, `INTERNAL_ERROR`.
+- `AppError` lives in `apps/api/src/errors.ts`, importing nothing from Express.
+- `style-src` allows `unsafe-inline` only if a check proves Radix needs it, with the reason and check recorded in `docs/SECURITY.md`. HSTS and `upgrade-insecure-requests` are off outside production, and a test proves production sends them.
+- `X-Request-Id` is optional. If added, it holds the server-generated ID and never an incoming header.
+- The rate-limit factory is optional. If added, it is tested and stays unmounted until TASK-022.
+- All app logs go to one destination, `process.stderr.write`, with no new logging dependency.
+- `writeAuthLog` handles non-string messages without printing their text, and strips control characters.
+- Better Auth's own 500s, including the breached-password service being down, get a code-only log line.
+- Router mount paths stay static (BP-046).
+
 - [ ] Implement
 - [ ] Test
 - [ ] Review
@@ -90,6 +147,23 @@ Verify helmet and express-rate-limit versions work with Express 5 by running the
 ### TASK-006: CI, secret scanning, and dependency audit
 
 Add `.github/workflows/ci.yml`: `npm ci`, typecheck, Biome, Vitest, build, with a Postgres service container using throwaway credentials. Add secret scanning (gitleaks in CI or GitHub push protection) and run `npm audit`, recording any deferred high or critical finding in MEMORY.md. Playwright joins CI in TASK-021.
+
+**Story:** As a developer, I want CI to also scan for secrets and audit dependencies, so that a leaked secret or vulnerable package can't merge unnoticed.
+
+**Acceptance criteria:**
+
+1. Already done: `ci.yml` runs `npm ci`, typecheck, Biome, `db:migrate`, Vitest and build, using throwaway Postgres credentials, and it has passed on GitHub. New: remove the stale lockfile comment at `ci.yml:36`.
+2. Secret scanning runs on every PR and push across full history. A fabricated secret on a throwaway branch makes it fail, and the committed placeholders pass through a narrow allow-list with a reason per entry.
+3. `npm audit` runs in CI against the tree after TASK-004 and TASK-005. The step fails on high and critical findings, which are fixed or deferred in `docs/MEMORY.md` with the deferred advisory IDs named in the workflow, and the 4 moderate `drizzle-kit` findings stay recorded.
+4. CI stays green on `main`, uses only throwaway values, and doesn't include Playwright.
+
+**Decisions (accepted 2026-11-03):**
+
+- Secret scanning uses the gitleaks Action in CI, after verifying its licence terms for a personal account. Push protection may run alongside it.
+- The allow-list is a committed `.gitleaks.toml` targeting only the committed placeholders, with a comment per entry and no broad paths or regexes.
+- Drop `--passWithNoTests` from `apps/api/package.json`. Check that `npm test` still works if `apps/web` has no tests, and keep the flag on web only if needed.
+- The workflow sets `permissions: contents: read` and pins actions to major tags or SHAs, with the reason recorded.
+- `postgres:17` stays until TASK-039 confirms Railway's version.
 
 - [ ] Implement
 - [ ] Test
@@ -235,7 +309,7 @@ Student screens at `/t/<token>`: loading, invalid-link message, start screen (na
 
 ### TASK-022: Rate limits, body and field limits, and the classroom burst test
 
-Apply express-rate-limit per client IP: a stricter limit on `POST /api/public/tests/:token/attempts` than on `GET`, limits on token lookups, a general limit on `/api/teacher/*`, with Better Auth's limiter confirmed active for `/api/auth/*`. Limits are env-tunable starting points. Set `trust proxy` appropriately. Tests: a burst sized for a classroom (for example 40 students from one IP submitting within a minute) is not blocked, abusive volume is; oversized body returns 413 on public routes; the name, answer-count, and multiple-choice selection caps are rejected past their limits. Short-answer and multiple-answer caps are tested in TASK-024.
+Apply express-rate-limit per client IP: a stricter limit on `POST /api/public/tests/:token/attempts` than on `GET`, limits on token lookups, a general limit on `/api/teacher/*`, with Better Auth's limiter confirmed active for `/api/auth/*`. Limits are env-tunable starting points. Set `trust proxy` appropriately; Better Auth ignores it and uses `advanced.ipAddress.trustedProxies`, which TASK-038 sets. Tests: a burst sized for a classroom (for example 40 students from one IP submitting within a minute) is not blocked, abusive volume is; oversized body returns 413 on public routes; the name, answer-count, and multiple-choice selection caps are rejected past their limits. Short-answer and multiple-answer caps are tested in TASK-024.
 
 - [ ] Implement
 - [ ] Test
@@ -387,7 +461,7 @@ Walk SECURITY.md's Before Production Checklist code items and confirm each with 
 
 ### TASK-038: Deploy to Railway
 
-Production build and start scripts, migrations applied by `drizzle-kit migrate` at deploy (schema-only, no push), Railway variables for `DATABASE_URL`, `BETTER_AUTH_SECRET` (CSPRNG, 32 bytes or more, distinct from every other environment), and `BETTER_AUTH_URL`. Set `trust proxy` to the correct hop count and confirm in a browser behind Railway that the cookie is HttpOnly, Secure, SameSite=Lax, Better Auth rate limiting is active, per-client-IP limits work for a class sharing an IP, and the app refuses to start without the secret. Use the private-network database URL where available, a runtime role if practical (otherwise record the gap), and no public database TCP proxy. Write the manual forgotten-password recovery procedure.
+Production build and start scripts, migrations applied by `drizzle-kit migrate` at deploy (schema-only, no push), Railway variables for `DATABASE_URL`, `BETTER_AUTH_SECRET` (CSPRNG, 32 bytes or more, distinct from every other environment), and `BETTER_AUTH_URL`. Set `trust proxy` to the correct hop count and Better Auth's `advanced.ipAddress.trustedProxies` to match the observed proxy chain, so one client can't lock every teacher out of sign-in, and confirm in a browser behind Railway that the cookie is HttpOnly, Secure, SameSite=Lax, Better Auth rate limiting is active, per-client-IP limits work for a class sharing an IP, and the app refuses to start without the secret. Use the private-network database URL where available, a runtime role if practical (otherwise record the gap), and no public database TCP proxy. Write the manual forgotten-password recovery procedure.
 
 - [ ] Implement
 - [ ] Test

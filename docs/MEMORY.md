@@ -25,16 +25,16 @@ TASK-004 — Prove the web stack (React Router 8, Tailwind 4.3, shadcn/ui, Recha
 
 ## Known Issues
 
-- [minor] TASK-001: `apps/api/package.json:8` keeps `--passWithNoTests`, which would hide a future case of no tests being found. Drop it or record why it stays.
-- [minor] TASK-001: `/api/hello` in `apps/api/src/app.ts:8` has no removal owner. The task that adds the routers and JSON 404 should remove it and replace the smoke test, or record it as a kept route.
+- [minor] TASK-001: `apps/api/package.json:8` keeps `--passWithNoTests`, which would hide a future case of no tests being found. TASK-006 drops it.
+- [minor] TASK-001: `/api/hello` in `apps/api/src/app.ts:8` has no removal owner. TASK-004 removes it and replaces the tests that use it.
 - [note] TASK-003: `NODE_ENV` is required, so Railway must set `NODE_ENV=production`. Local tests now run in development mode because `.env` sets it, while CI runs them in test mode.
-- [minor] TASK-003: `apps/api/src/app.ts:10` calls `next(error)` when headers are already sent, and Express's final handler then prints the whole error, including any query params. Hard to reach today. End the response instead of calling `next`.
-- [minor] TASK-003: `writeAuthLog` in `apps/api/src/auth.ts:30` assumes `message` is a string, but Better Auth's list-sessions route logs an `Error` as the message. The split throws and the real cause is lost. Handle non-strings without printing their text.
-- [minor] TASK-003: with `onAPIError.throw`, Better Auth's own 500s aren't logged, including the breached-password service being down. Log a code-only line for them, or record that they are unlogged in `docs/SECURITY.md`.
+- [minor] TASK-003: `apps/api/src/app.ts:10` calls `next(error)` when headers are already sent, and Express's final handler then prints the whole error, including any query params. Hard to reach today. TASK-005 ends the response instead of calling `next`.
+- [minor] TASK-003: `writeAuthLog` in `apps/api/src/auth.ts:30` assumes `message` is a string, but Better Auth's list-sessions route logs an `Error` as the message. The split throws and the real cause is lost. TASK-005 handles non-strings without printing their text.
+- [minor] TASK-003: with `onAPIError.throw`, Better Auth's own 500s aren't logged, including the breached-password service being down. TASK-005 logs a code-only line for them.
 - [minor] TASK-003: the leak test at `apps/api/test/auth.test.ts:274` finds the session `id`, not the `token`, because both are 32 characters and `id` comes first. Its other assertions still catch the leak, but it should check the token itself.
 - [nit] TASK-003: `apps/api/test/db.test.ts:21` skips `mockRestore` if the `not.toThrow` assertion fails. Use `try`/`finally`.
-- [nit] TASK-003: `writeAuthLog` strips newlines but not other control characters, such as ANSI escapes in an attacker-supplied `Origin`.
-- [major] TASK-003: behind Railway's proxy, `x-forwarded-for` may hold several addresses, and Better Auth then puts every client in one rate-limit bucket, so one client could lock every teacher out of sign-in. Unverified on Railway. Express `trust proxy` doesn't help: check before deploying and set `advanced.ipAddress.trustedProxies`. Can wait for deployment work.
+- [nit] TASK-003: `writeAuthLog` strips newlines but not other control characters, such as ANSI escapes in an attacker-supplied `Origin`. TASK-005 strips them.
+- [major] TASK-003: behind Railway's proxy, `x-forwarded-for` may hold several addresses, and Better Auth then puts every client in one rate-limit bucket, so one client could lock every teacher out of sign-in. Unverified on Railway. Express `trust proxy` doesn't help: TASK-038 checks this and sets `advanced.ipAddress.trustedProxies`.
 - [minor] TASK-003: TASK-005 and TASK-006 overlap work already done: the 100 KB `express.json` limit, the auth error handler in `app.ts`, the pool handler, and the CI `db:migrate` step. Build on them rather than redoing them. TASK-005's shared error handler must never log a Drizzle error's message.
 - [minor] TASK-003: sign-up requires `name`, but `docs/DESIGN.md` and the create-account mockup have no such field. TASK-010 must add one or derive it. Check `docs/DESIGN.md` then.
 - [minor] TASK-003: `auth.ts` trusts `http://localhost:5173` in development, assuming Vite's default port. Confirm it through the proxy in TASK-004.
@@ -53,4 +53,4 @@ TASK-004 — Prove the web stack (React Router 8, Tailwind 4.3, shadcn/ui, Recha
 
 ## Next Step
 
-Merge `feat/better-auth` through a pull request. Then run /next-tasks TASK-004, since it has no saved story yet, and /implement-task TASK-004.
+Run /implement-task TASK-004. Its story and accepted decisions are in `docs/TASKS.md`.
