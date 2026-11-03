@@ -35,7 +35,7 @@ describe("env", () => {
     expect((await loadEnv()).PORT).toBe(3000);
   });
 
-  it.each(["DATABASE_URL", "BETTER_AUTH_SECRET", "BETTER_AUTH_URL"] as const)(
+  it.each(["NODE_ENV", "DATABASE_URL", "BETTER_AUTH_SECRET", "BETTER_AUTH_URL"] as const)(
     "rejects a missing %s and names it",
     async (name) => {
       await expect(loadEnv({ [name]: undefined })).rejects.toThrow(name);
@@ -104,5 +104,5 @@ describe("process startup", () => {
     expect(result.stderr).toContain("Invalid environment variables: BETTER_AUTH_SECRET");
     expect(result.stderr).not.toContain(PLACEHOLDER);
     expect(result.stderr).not.toContain("fake-db-password");
-  });
+  }, 40_000); // The whole module graph, now including Better Auth, loads before env.ts runs.
 });

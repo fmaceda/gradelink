@@ -64,10 +64,10 @@ Mount `toNodeHandler(auth)` at `/api/auth/*splat` before `express.json()` and co
 7. A breached-password hook is either wired with a test or recorded as a known gap in SECURITY.md.
 8. ARCHITECTURE and SECURITY are updated with the results, and production-only checks stay unticked.
 
-- [ ] Implement
-- [ ] Test
-- [ ] Review
-- [ ] Complete
+- [x] Implement
+- [x] Test
+- [x] Review
+- [x] Complete
 
 ### TASK-004: Prove the web stack (React Router 8, Tailwind 4.3, shadcn/ui, Recharts) and Express serving the SPA
 

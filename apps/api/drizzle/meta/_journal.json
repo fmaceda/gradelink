@@ -15,6 +15,13 @@
       "when": 1793713354532,
       "tag": "0001_handy_sway",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1793716762817,
+      "tag": "0002_dapper_songbird",
+      "breakpoints": true
     }
   ]
 }

@@ -5,7 +5,8 @@ const PLACEHOLDER_SECRETS = new Set(["replace-me-with-a-long-random-value"]);
 
 const envSchema = z
   .object({
-    NODE_ENV: z.enum(["development", "test", "production"]).default("development"),
+    // Required: a default would let a deploy that forgets it run with development security.
+    NODE_ENV: z.enum(["development", "test", "production"]),
     PORT: z.coerce.number().int().min(1).max(65535).default(3000),
     DATABASE_URL: z.url(),
     BETTER_AUTH_SECRET: z.string().min(1),
