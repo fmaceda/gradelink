@@ -8,14 +8,39 @@ Phases follow the build order confirmed in PRD.md (MVP): prove the unproven stac
 
 Create the npm workspace (`apps/api`, `apps/web`, `packages/shared`), `tsconfig.base.json` (strict), `biome.json`, `.nvmrc` (26.x), `engines`, `.gitignore` (`.env`, `node_modules`, `dist`, local Claude settings), and `.env.example` with placeholder values only. Recheck every version in STACK.md against the npm registry (`npm view <pkg> version` and `peerDependencies`), not changelogs or search results: pin the exact TypeScript 6.0.x patch (`npm view typescript@6.0 version`), pin `@types/node` against Node 26.13, and record express-rate-limit, helmet, and Recharts versions. Prove the tools work together by running them: `tsc --noEmit` on the pinned TypeScript, `biome check` against that language version, a Vitest smoke test, and `tsx` starting a hello-world Express 5 app. Commit `package-lock.json`. Update STACK.md and ARCHITECTURE.md with what was proven or disproven.
 
-- [ ] Implement
-- [ ] Test
-- [ ] Review
-- [ ] Complete
+**Story:** As a developer, I want the workspace and every stack version proven by running the tools on Node 26, so that later tasks build on a reproducible base.
+
+**Acceptance criteria:**
+
+1. `node -v`, `.nvmrc` and `engines` all agree on Node 26.x.
+2. `npm view <pkg> version` and `peerDependencies` have been run for every package in STACK.md. STACK.md shows each verified version or discrepancy, and each "not confirmed" item is marked proven, disproven, or pending with its owning task.
+3. `typescript` is pinned to the exact 6.0.x patch from `npm view typescript@6.0 version`, with no `~`. `@types/node` is pinned against Node 26.13, and `npm ls @types/node typescript` shows one version of each.
+4. Versions and peer ranges for `express-rate-limit`, `helmet` and Recharts are recorded in STACK.md, and none of them is installed.
+5. These proofs pass, and each command and result is recorded: `npm run typecheck` exits 0; `npm run lint` exits 0; `npm test` runs at least one real test, so it doesn't pass only through `--passWithNoTests`; `tsx` starts a hello-world Express 5 app, and a request to it returns 200.
+6. `package-lock.json` is committed, and `npm ci` succeeds from a clean state on Node 26.13.
+7. `.env.example` holds placeholders only, and `git ls-files` doesn't list `.env`.
+8. STACK.md and ARCHITECTURE.md record what was proven, including the Node 22 / npm 10.9.8 crash as "cause unverified, not reproduced on Node 26.13.0 / npm 11.20.0".
+
+- [x] Implement
+- [x] Test
+- [x] Review
+- [x] Complete
 
 ### TASK-002: Postgres, Drizzle, and env module
 
 Get a local Postgres running and prove Drizzle ORM 0.45.4, drizzle-kit 0.31.11, and pg 8.23.1 work together: read their `peerDependencies` from the registry, install, generate and apply a trivial migration, run a query. Add `db/client.ts` (limited pool size) and a single `env.ts` that parses `process.env` with Zod at startup, fails fast on missing values, gives secrets no defaults, and refuses to start in production if `BETTER_AUTH_SECRET` is missing or a known placeholder. Record the result in STACK.md.
+
+**Story:** As a developer, I want a local Postgres, a working Drizzle toolchain and one fail-fast env module, so that later tasks can store data and read config safely.
+
+**Acceptance criteria:**
+
+1. Peer dependencies for `drizzle-orm`, `drizzle-kit` and `pg` are recorded in STACK.md, and `npm ls` shows none unmet or invalid.
+2. Local Postgres runs, its start command is documented, and a query through Drizzle succeeds.
+3. `db:generate` creates a committed SQL file, `db:migrate` applies it, and a second run changes nothing. `drizzle-kit push` isn't used.
+4. `db/client.ts` sets an explicit small pool `max`, reads config only from `env`, and never uses `rejectUnauthorized: false`.
+5. `env.ts` parses `process.env` once with Zod at startup, and secrets have no defaults. A missing value exits non-zero, and the error names the variable but not its value. Unit tests cover this.
+6. With `NODE_ENV=production`, a missing, empty or known-placeholder `BETTER_AUTH_SECRET` stops startup, and a real value starts normally.
+7. A search finds `process.env` only in `env.ts`, plus any exception agreed for `drizzle.config.ts`.
 
 - [ ] Implement
 - [ ] Test
@@ -25,6 +50,19 @@ Get a local Postgres running and prove Drizzle ORM 0.45.4, drizzle-kit 0.31.11, 
 ### TASK-003: Prove Better Auth on Express 5 and set the auth config
 
 Mount `toNodeHandler(auth)` at `/api/auth/*splat` before `express.json()` and confirm sign-up, sign-in, session lookup via `auth.api.getSession` with `fromNodeHeaders`, and sign-out (deletes the server-side session row). Confirm against Better Auth 1.7.15 that each option SECURITY.md names exists and works: `minPasswordLength: 15`, explicit cookie attributes (HttpOnly, Secure, SameSite=Lax), finite session lifetime and idle refresh, built-in rate limiting on `/api/auth/*`, trusted origins set to the app origin only, `baseURL` and `secret` from env, and a generic wrong-credentials error. Check whether a breached-password hook exists; if not, record it as a known gap. Test that a 14-character password is rejected and a 15-character one is accepted. Test environment is configured, not rate-limiting-disabled. Update ARCHITECTURE.md rule 8 and SECURITY.md notes with the result.
+
+**Story:** As a teacher, I want to create an account, sign in, stay signed in and sign out securely, so that my questions and results are only reachable by me.
+
+**Acceptance criteria:**
+
+1. `toNodeHandler(auth)` is mounted at `/api/auth/*splat` before `express.json()`, and a test confirms the sign-up body isn't consumed by it. The Better Auth tables come from a generated migration, and ARCHITECTURE rule 8 is updated.
+2. Sign-up creates a user, and sign-in returns a cookie. `auth.api.getSession` with `fromNodeHeaders` returns the user with that cookie and null without it. Sign-out deletes the session row, and replaying the old cookie returns no session.
+3. A 14-character password is rejected and a 15-character one is accepted. A password of 64 or more characters with spaces is also accepted.
+4. Cookies are HttpOnly and SameSite=Lax, with `Secure` on in production. `expiresIn` and `updateAge` are finite and recorded, and the session token rotates on sign-in.
+5. Repeated wrong sign-ins return 429 with rate limiting left on in tests. `trustedOrigins` contains only the app origin and rejects a foreign `Origin`. `baseURL` and `secret` come from `env.ts`.
+6. A wrong password and an unknown email return the same status and body, and a duplicate email creates no second user.
+7. A breached-password hook is either wired with a test or recorded as a known gap in SECURITY.md.
+8. ARCHITECTURE and SECURITY are updated with the results, and production-only checks stay unticked.
 
 - [ ] Implement
 - [ ] Test

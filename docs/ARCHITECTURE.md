@@ -8,9 +8,9 @@ GradeLink is a single-repo npm workspace that ships as one deployable: an Expres
 
 | Layer | Choice | Version (verified) | Why |
 |---|---|---|---|
-| Frontend | React + Vite SPA, React Router (library/data router mode); Recharts for analytics charts | React 19.3.1, Vite 8.3.5, @vitejs/plugin-react 6.2.1, React Router 8.5.1; Recharts version not confirmed | No SSR need. A static SPA works on phones and is served by Express, so there is one deployable. |
+| Frontend | React + Vite SPA, React Router (library/data router mode); Recharts for analytics charts | React 19.3.1, @types/react 19.3.0, @types/react-dom 19.3.0, Vite 8.3.5, @vitejs/plugin-react 6.2.1, React Router 8.5.1; Recharts 3.10.1 recorded, compatibility not confirmed | No SSR need. A static SPA works on phones and is served by Express, so there is one deployable. |
 | Styling | Tailwind CSS with shadcn/ui (Vite path) | Tailwind CSS 4.3.3, @tailwindcss/vite 4.3.3; shadcn/ui setup with Tailwind 4.3 and React 19.3 not confirmed | Fast, mobile-friendly UI without hand-rolling components. |
-| Backend | Express, TypeScript (strict) on Node.js LTS; Zod for validation and shared types | Express 5.3.0, @types/express 5.0.6, TypeScript ~6.0.3 (exact 6.0.x patch not checked), Node.js 26.13.0 LTS, Zod 4.6.7; dev runner tsx 4.23.15; express-rate-limit and helmet (versions not yet verified) | Small, well-known REST layer. One language across API, client, and shared schemas. Grading and answer keys stay server-side in `apps/api`. |
+| Backend | Express, TypeScript (strict) on Node.js LTS; Zod for validation and shared types | Express 5.3.0, @types/express 5.0.6, TypeScript 6.0.3, @types/node 26.6.6, Node.js 26.13.0 LTS, Zod 4.6.7; dev runner tsx 4.23.15; express-rate-limit 8.7.3 and helmet 8.3.0 recorded, not yet installed | Small, well-known REST layer. One language across API, client, and shared schemas. Grading and answer keys stay server-side in `apps/api`. |
 | Database | PostgreSQL with Drizzle ORM | PostgreSQL: managed host's current major (not confirmed); Drizzle ORM 0.45.4, drizzle-kit 0.31.11, pg 8.23.1 | Connected data (questions reused across tests, tags) and analytics aggregates are core features. Typed SQL through Drizzle. |
 | Authentication | Better Auth, email and password, teachers only | Better Auth 1.7.15 | Avoids owning security-sensitive session code. Students have no accounts. |
 | Deployment / Hosting | Railway Hobby with Railway Postgres in the same project; GitHub Actions for CI | $5/month, includes $5 of usage | One vendor for app and database. Express serves the built client and the API under `/api`. |
@@ -19,17 +19,15 @@ Supporting tooling (restated from the confirmed stack): Vitest 5.0.5 and Playwri
 
 **Not yet confirmed (prove in early setup tasks, do not treat as settled):**
 
-- The exact TypeScript 6.0.x patch (`npm view typescript@6.0 version`, then pin).
-- express-rate-limit and helmet versions and their compatibility with Express 5.
-- Recharts version and React 19.3 compatibility.
-- shadcn/ui setup with Tailwind 4.3 and React 19.3.
-- React Router 8 API in SPA mode.
-- Better Auth mounting on Express 5.
-- @types/node patch level against Node 26.13.
-- Drizzle's peerDependencies could not be read, so Drizzle compatibility with the rest of the stack is unproven.
+- express-rate-limit and helmet compatibility with Express 5 (TASK-005).
+- Recharts compatibility with React 19.3 (TASK-004).
+- shadcn/ui setup with Tailwind 4.3 and React 19.3 (TASK-004).
+- React Router 8 API in SPA mode (TASK-004).
+- Better Auth mounting on Express 5 (TASK-003).
+- Drizzle's peerDependencies could not be read, so Drizzle compatibility with the rest of the stack is unproven (TASK-002).
 - Railway Postgres major version, backups, and pricing; Hobby commercial-use terms. Check before storing real student data.
 
-> **Assumption:** Version numbers above are carried over from the stack decision, whose Record phase did not re-check them. This document does not re-verify them either.
+**Proven in TASK-001 (2026-11-03):** the pinned versions exist on the npm registry, and TypeScript, Biome, Vitest, the production build, and `tsx` running Express 5 all work together on Node 26.13.0. `STACK.md` holds the details.
 
 ## System Architecture
 
@@ -210,7 +208,7 @@ Security-adjacent rules follow OWASP ASVS and OWASP Session Management guidance,
 
 **Assumptions made here (also marked inline):**
 
-- Versions are carried over from the stack decision and not re-verified.
+- Versions were carried over from the stack decision and rechecked against the registry in TASK-001.
 - Route prefixes (`/api/teacher`, `/api/public`) and the `/t/<token>` client path.
 - Folder layout inside the apps, test locations, and env var names.
 - JSONB for type-specific options and published test snapshots.
