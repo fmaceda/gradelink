@@ -22,9 +22,9 @@ Create the npm workspace (`apps/api`, `apps/web`, `packages/shared`), `tsconfig.
 8. STACK.md and ARCHITECTURE.md record what was proven, including the Node 22 / npm 10.9.8 crash as "cause unverified, not reproduced on Node 26.13.0 / npm 11.20.0".
 
 - [x] Implement
-- [ ] Test
-- [ ] Review
-- [ ] Complete
+- [x] Test
+- [x] Review
+- [x] Complete
 
 ### TASK-002: Postgres, Drizzle, and env module
 
