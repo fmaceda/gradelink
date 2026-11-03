@@ -27,7 +27,7 @@ TASK-004 — Prove the web stack (React Router 8, Tailwind 4.3, shadcn/ui, Recha
 
 - [minor] TASK-001: `apps/api/package.json:8` keeps `--passWithNoTests`, which would hide a future case of no tests being found. Drop it or record why it stays.
 - [minor] TASK-001: `/api/hello` in `apps/api/src/app.ts:8` has no removal owner. The task that adds the routers and JSON 404 should remove it and replace the smoke test, or record it as a kept route.
-- [action] TASK-003: `NODE_ENV` is now required, so add `NODE_ENV=development` to `.env` and `.env.example`. Permission settings block these edits for Claude. `npm run dev:api` stops at startup until `.env` has it. Tests pass with `NODE_ENV=development` too, but `.env` then makes them run in development mode rather than CI's test mode. Railway must set `NODE_ENV=production`.
+- [note] TASK-003: `NODE_ENV` is required, so Railway must set `NODE_ENV=production`. Local tests now run in development mode because `.env` sets it, while CI runs them in test mode.
 - [minor] TASK-003: `apps/api/src/app.ts:10` calls `next(error)` when headers are already sent, and Express's final handler then prints the whole error, including any query params. Hard to reach today. End the response instead of calling `next`.
 - [minor] TASK-003: `writeAuthLog` in `apps/api/src/auth.ts:30` assumes `message` is a string, but Better Auth's list-sessions route logs an `Error` as the message. The split throws and the real cause is lost. Handle non-strings without printing their text.
 - [minor] TASK-003: with `onAPIError.throw`, Better Auth's own 500s aren't logged, including the breached-password service being down. Log a code-only line for them, or record that they are unlogged in `docs/SECURITY.md`.
@@ -53,4 +53,4 @@ TASK-004 — Prove the web stack (React Router 8, Tailwind 4.3, shadcn/ui, Recha
 
 ## Next Step
 
-Merge `feat/better-auth` through a pull request and add `NODE_ENV=development` to `.env` and `.env.example`. Then run /next-tasks TASK-004, since it has no saved story yet, and /implement-task TASK-004.
+Merge `feat/better-auth` through a pull request. Then run /next-tasks TASK-004, since it has no saved story yet, and /implement-task TASK-004.
