@@ -15,7 +15,7 @@
 ### Architecture notes tied to the stack
 
 - **Sessions:** same origin, Better Auth HttpOnly / Secure / SameSite=Lax cookie, no CORS. In dev, Vite `server.proxy` forwards `/api` to Express.
-- **Auth mounting:** mount `toNodeHandler(auth)` at `/api/auth/*splat` before `express.json()`. > **Assumption:** this comes from the advisor's knowledge, not a fetched doc; confirm in the first setup task.
+- **Auth mounting:** mount `toNodeHandler(auth)` at `/api/auth/*splat` before `express.json()`. Proven in TASK-003.
 - **Repo shape:** single repo, small npm workspace with no Turborepo or Nx:
   - `apps/api`: Express, Drizzle, Better Auth, grading
   - `apps/web`: Vite, React, React Router
@@ -61,7 +61,6 @@
   - Recharts compatibility with React 19.3: pending, TASK-004. Registry peers allow it (`react`, `react-dom` and `react-is` up to `^19.0.0`).
   - shadcn/ui setup with Tailwind 4.3 and React 19.3: pending, TASK-004.
   - React Router 8 API in SPA mode: pending, TASK-004.
-  - Better Auth mounting on Express 5: pending, TASK-003.
 - **Proven in TASK-001 (2026-11-03, Node 26.13.0, npm 11.20.0):**
   - Registry recheck: every pinned version in this file exists. All are the latest except Tailwind and @tailwindcss/vite (4.3.4 is out) and Vitest (5.1.0 is out). The pins stay; TypeScript's latest is 7.0.2, kept at 6.0.3 as decided above.
   - `@types/node` has no 26.13.x release, so it pins the highest 26.x, 26.6.6. `npm ls` shows one version of it and of TypeScript.
@@ -74,8 +73,16 @@
   - Peers: `drizzle-orm@0.45.4` lists `pg >=8` and `@types/pg *`, among optional drivers; `drizzle-kit@0.31.11` lists none; `pg@8.23.1` lists only the optional `pg-native`. `npm ls` shows none invalid. `@types/pg` 8.23.1 is added as an exact pin because the `pg` pool needs its types.
   - Migrations: `npm run db:generate -w @gradelink/api` wrote the SQL, `npm run db:migrate -w @gradelink/api` applied it, and a second run changed nothing. `0000` creates a throwaway `stack_proof` table and `0001` drops it, so the first real schema starts empty.
   - A parameterized query through Drizzle succeeds (`apps/api/test/db.test.ts`). The pool `max` is 5, provisional until TASK-039 checks Railway's connection limit.
+- **Proven in TASK-003 (2026-11-03, Better Auth 1.7.15):**
+  - Every option `SECURITY.md` names exists and works; `apps/api/test/auth.test.ts` covers them against a real server and database.
+  - `toNodeHandler` and `fromNodeHeaders` come from `better-auth/node`, and the Drizzle adapter from `better-auth/adapters/drizzle`.
+  - The `@better-auth/cli` tool isn't needed. `db/schema.ts` matches what `getAuthTables` reports, and `drizzle-kit` generates the migration.
+  - Better Auth's `user` table requires `name`, so sign-up must send one.
+  - Under `NODE_ENV=test`, Better Auth turns its origin check off by default, so `auth.ts` sets `disableOriginCheck: false`.
+  - Better Auth trusts `x-forwarded-for` only when it holds one address, unless `advanced.ipAddress.trustedProxies` is set. Otherwise all clients share one rate-limit bucket.
+  - Tests run against the database in `DATABASE_URL`, so CI runs `db:migrate` first. They use fabricated `@auth-test.gradelink.example` accounts and delete them afterward.
 - **Local Postgres:** an installed Windows service, not a container. Start it with `Start-Service postgresql-x64-18`, as an administrator if needed. The database named in `.env` must exist before migrating (`CREATE DATABASE gradelink`). CI uses `postgres:17`, and Railway's major version is unconfirmed.
-- **Environment:** `apps/api/src/env.ts` also accepts optional `NODE_ENV` (default `development`) and `PORT` (default 3000). The API's npm scripts load the root `.env` with Node's `--env-file-if-exists`, so no `dotenv` dependency is needed and CI and production use real environment variables.
+- **Environment:** `apps/api/src/env.ts` also requires `NODE_ENV` (`development`, `test`, or `production`; Vitest sets `test` itself) and accepts an optional `PORT` (default 3000). The API's npm scripts load the root `.env` with Node's `--env-file-if-exists`, so no `dotenv` dependency is needed and CI and production use real environment variables.
 - **Install notes (2026-11-03):**
   - `npm install` on Node 22.23.2 / npm 10.9.8 crashed with `Cannot read properties of null (reading 'edgesOut')` while resolving Vitest's peers. Cause unverified, not reproduced on Node 26.13.0 / npm 11.20.0. Use Node 26 per `.nvmrc`.
   - npm 11.20.0 warns that esbuild's postinstall scripts were not run. tsx, Vite, and the build still work without them.

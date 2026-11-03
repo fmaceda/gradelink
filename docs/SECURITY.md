@@ -16,23 +16,23 @@ GradeLink has two very different trust zones:
 - Set an explicit `minPasswordLength` of 15 in the Better Auth `emailAndPassword` config, since a password is the only authenticator. Allow long passwords (at least 64 characters) and all characters, including spaces.
 - Do not add composition rules (forced symbols or digits) and do not force periodic rotation. NIST advises against both.
 - Do not hand-roll hashing. Use Better Auth's default password hashing and do not replace it with a weaker algorithm.
-- Block known-breached or very common passwords if Better Auth supports a hook or plugin for it. Otherwise record it as a gap.
+- Block known-breached passwords with Better Auth's `haveIBeenPwned` plugin (enabled in TASK-003). On sign-up and password change it sends only the first 5 characters of the password's SHA-1 hash to `api.pwnedpasswords.com`. If that service is unavailable, sign-up fails with an error and creates no account. Students are never affected.
 
 **Sessions (ASVS V7, OWASP Session Management):**
 
 - Use only Better Auth's database-backed session cookie: HttpOnly, Secure, SameSite=Lax, same origin. Do not store session tokens in `localStorage` or `sessionStorage`, and do not read them from client JS.
 - Keep cookie attributes explicit in the Better Auth config and confirm `Secure` is on in production. Behind Railway's TLS-terminating proxy, set Express `trust proxy` correctly so the app sees HTTPS (see Before Production Checklist).
 - Sign-out must delete the server-side session row, not only clear the cookie.
-- Set a finite session lifetime and idle refresh window in the Better Auth config. Better Auth rotates the session token on sign-in, so do not reuse a pre-login cookie.
+- Set a finite session lifetime and idle refresh window in the Better Auth config: 24 hours and 1 hour, chosen for shared school devices. Each sign-in creates a new session with a new token, and the app has no pre-login session to reuse.
 
 **Brute force and abuse of sign-in:**
 
-- Keep Better Auth's built-in rate limiting on for `/api/auth/*` in production and verify it is active there. Do not disable it for convenience in tests; configure the test environment instead.
+- Keep Better Auth's built-in rate limiting on for `/api/auth/*` in production and verify it is active there. Do not disable it for convenience in tests; configure the test environment instead. Limits apply per IP and per path, and are stored in memory, so a restart clears them: 10 per 60 seconds for email sign-in and for sign-up, Better Auth's stricter defaults for password and email changes and resets (3 per 10 or 60 seconds), and 100 per 60 seconds for the rest.
 - Return the same error for "unknown email" and "wrong password".
 
-**CSRF (ASVS V3):** SameSite=Lax blocks cross-site POSTs from carrying the cookie. As defense in depth, keep Better Auth's trusted-origins and origin checks on, set to the production origin only. All state-changing teacher routes use POST/PUT/PATCH/DELETE, never GET.
+**CSRF (ASVS V3):** SameSite=Lax blocks cross-site POSTs from carrying the cookie. As defense in depth, keep Better Auth's trusted-origins and origin checks on, set to the production origin only. `NODE_ENV=development` alone also trusts Vite's `http://localhost:5173`, because that is the origin the browser sees through the dev proxy. All state-changing teacher routes use POST/PUT/PATCH/DELETE, never GET.
 
-**Mounting:** `toNodeHandler(auth)` at `/api/auth/*splat` before `express.json()`. This pattern is unverified (see Notes). The first setup task must prove it works, and that the Better Auth `baseURL` and `secret` come from env vars.
+**Mounting:** `toNodeHandler(auth)` at `/api/auth/*splat` before `express.json()`. TASK-003 proved this works, with the Better Auth `baseURL` and `secret` coming from env vars.
 
 **Password reset and email verification are later work (per PRD.md). Consequence:** until they exist, a teacher who forgets a password has no self-service recovery, and the operator has to reset it by hand. Since email is not verified, anyone can register with an email address they don't own. The result is junk accounts, and a squatter can hold someone else's address. Reset and verification are also the usual defenses against account takeover through a stale email, so the lack of both raises the risk of a weak teacher account. Mitigations for now: the 15-character minimum, sign-in rate limiting, and a documented manual recovery procedure. If real schools use the app, add both before onboarding them.
 
@@ -98,8 +98,8 @@ This limit does not weaken the controls above. Anonymity of students is a trust 
 - **Secrets in this app:** `BETTER_AUTH_SECRET` (signs and encrypts auth data), `DATABASE_URL` (includes DB credentials), and `BETTER_AUTH_URL` (not secret but environment-specific). Names match `.env.example` in ARCHITECTURE.md.
 - **Never in source control (NIST SSDF PS.1, ASVS V13):** `.env` is gitignored. Only `.env.example` with placeholder values is committed. Run a secret scanner (for example gitleaks, or GitHub secret scanning and push protection) in CI or on the repo.
 - **Per environment:** Local uses an untracked `.env`. Production secrets live in Railway service variables, not in the repo or the image. CI uses GitHub Actions secrets, and the CI Postgres service container uses throwaway credentials that never match production. Use different `BETTER_AUTH_SECRET` and database credentials per environment.
-- **Strength and rotation:** Generate `BETTER_AUTH_SECRET` with a CSPRNG, 32 bytes or more (for example `openssl rand -base64 32`). The app must refuse to start in production if it is missing or is a known placeholder. Rotating the secret invalidates existing sessions. Do that if it leaks, and note that teachers will need to sign in again.
-- **Never logged:** Don't log `DATABASE_URL`, secrets, session cookies, request bodies of `/api/auth/*`, or answer keys. Logs should record method, route pattern (for example `/api/public/tests/:token`, never the raw URL, which holds the share token), status, and a request id.
+- **Strength and rotation:** Generate `BETTER_AUTH_SECRET` with a CSPRNG, 32 bytes or more (for example `openssl rand -base64 32`). The app must refuse to start in production if it is missing or is a known placeholder. `NODE_ENV` is required with no default, so a deploy that omits it stops at startup instead of running with development security. Rotating the secret invalidates existing sessions. Do that if it leaks, and note that teachers will need to sign in again.
+- **Never logged:** Don't log `DATABASE_URL`, secrets, session cookies, request bodies of `/api/auth/*`, or answer keys. Database errors can carry query params such as session tokens and password hashes, so never log a Drizzle error's message. `apps/api/src/auth.ts` gives Better Auth a logger that writes only one line of its message and an error code, and sets `onAPIError.throw` because its router otherwise prints unexpected errors whole. The error handler in `apps/api/src/app.ts` then returns a generic 500. Direct `auth.api.*` calls throw to their caller, so `requireTeacher` and the shared error handler must follow the same rule. Logs should record method, route pattern (for example `/api/public/tests/:token`, never the raw URL, which holds the share token), status, and a request id.
 - **Client bundle:** Nothing from `apps/api` env goes into `apps/web`. Only `VITE_`-prefixed variables reach the client bundle, so never put a secret in one.
 
 ## Database Security
@@ -148,7 +148,7 @@ The app stores student names alongside scores and each raw response, and teacher
 - **What is stored:** `attempts.student_name`, `submitted_at`, scores, and `attempt_answers.response`. Names are self-typed, so they may be real, partial, or invented. No student email, account, or device identifier is collected. IP addresses are used transiently for rate limiting and should not be written to the database.
 - **Compliance:** The user stated no compliance constraints, and it was not confirmed whether students are minors. Nothing here assumes they are or aren't. Once real schools use the app, laws such as FERPA (US), COPPA (US, children under 13), or GDPR (EU/UK) could apply, depending on who the students are, where they are, and who is operating the service. This note is not legal advice, and none of these are claimed to be met.
 - **Data minimization:** collect only the name field, with no extra student fields. Tell students not to enter more than a first name or nickname, with a short line on the name entry screen (see assumption below).
-- **Access:** only the owning teacher can read their students' attempts (see Authorization). Student data does not appear in logs, error messages, or analytics sent to third parties. There are no third-party services in the request path.
+- **Access:** only the owning teacher can read their students' attempts (see Authorization). Student data does not appear in logs, error messages, or analytics sent to third parties. Student requests use no third-party services. The only outside call is the breached-password check on teacher sign-up and password change, which sends no student data.
 - **Retention and deletion:** Data is kept until the teacher deletes it, with no automatic expiry. A teacher can delete one attempt, or a whole test with its attempts (PRD.md Core Features). Deletion is permanent, is scoped to the owning teacher, and removes the related `attempt_answers`.
 
 > **Assumption:** The name entry screen carries a brief notice ("Use your first name or a nickname"). This is a suggested design copy item, not confirmed.
@@ -169,9 +169,9 @@ The app stores student names alongside scores and each raw response, and teacher
 
 **Authentication and sessions:**
 
-- [ ] Better Auth mounting on Express 5 verified (`toNodeHandler(auth)` at `/api/auth/*splat` before `express.json()`).
+- [x] Better Auth mounting on Express 5 verified (`toNodeHandler(auth)` at `/api/auth/*splat` before `express.json()`).
 - [ ] Cookie is HttpOnly, Secure, SameSite=Lax in production, confirmed in a browser behind Railway's proxy.
-- [ ] `minPasswordLength` set to 15 and a generic sign-in error confirmed.
+- [x] `minPasswordLength` set to 15 and a generic sign-in error confirmed.
 - [ ] Better Auth rate limiting verified active in production.
 - [ ] Manual recovery procedure for forgotten passwords documented, or password reset built.
 - [ ] Decision made on open teacher registration versus invite or allow-list.
@@ -203,7 +203,7 @@ The app stores student names alongside scores and each raw response, and teacher
 - The numeric rate limits are starting points.
 - Railway Postgres credential splitting, TLS behavior, and `trust proxy` hop count are unchecked.
 - The name-entry privacy notice is a suggestion.
-- Inherited, unverified: the Better Auth mounting pattern (from the stack advisor's knowledge, not a fetched doc), and the Better Auth config options named above (`minPasswordLength`, rate limiting, trusted origins), which must be confirmed against the pinned version 1.7.15 in the first setup task.
+- Verified in TASK-003 against the pinned version 1.7.15: the Better Auth mounting pattern and the config options named above (`minPasswordLength`, rate limiting, trusted origins). Their behavior behind Railway's proxy is still unverified.
 
 **Open questions:**
 

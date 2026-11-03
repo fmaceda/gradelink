@@ -2,7 +2,7 @@
 
 ## Overview
 
-GradeLink is a single-repo npm workspace that ships as one deployable: an Express 5 API that also serves the built React single-page app, backed by one PostgreSQL database. Teachers sign in (Better Auth, same-origin cookie session), build a reusable question bank with tags, compose tests from it, and publish them behind a random share link. Students open the link with no account, enter a name, answer, and submit. The API grades the submission server-side and returns a score. Class-score and per-question analytics are computed from stored attempts. There are no background workers, no third-party services in the request path, and no CORS: the browser only ever talks to its own origin.
+GradeLink is a single-repo npm workspace that ships as one deployable: an Express 5 API that also serves the built React single-page app, backed by one PostgreSQL database. Teachers sign in (Better Auth, same-origin cookie session), build a reusable question bank with tags, compose tests from it, and publish them behind a random share link. Students open the link with no account, enter a name, answer, and submit. The API grades the submission server-side and returns a score. Class-score and per-question analytics are computed from stored attempts. There are no background workers, no third-party services in the request path except the breached-password check on teacher sign-up (see `SECURITY.md`), and no CORS: the browser only ever talks to its own origin.
 
 ## Technologies
 
@@ -23,7 +23,6 @@ Supporting tooling (restated from the confirmed stack): Vitest 5.0.5 and Playwri
 - Recharts compatibility with React 19.3 (TASK-004).
 - shadcn/ui setup with Tailwind 4.3 and React 19.3 (TASK-004).
 - React Router 8 API in SPA mode (TASK-004).
-- Better Auth mounting on Express 5 (TASK-003).
 - Railway Postgres major version, backups, and pricing; Hobby commercial-use terms. Check before storing real student data.
 
 **Proven in TASK-001 (2026-11-03):** the pinned versions exist on the npm registry, and TypeScript, Biome, Vitest, the production build, and `tsx` running Express 5 all work together on Node 26.13.0. `STACK.md` holds the details.
@@ -56,18 +55,18 @@ Supporting tooling (restated from the confirmed stack): Vitest 5.0.5 and Playwri
 
 **State and boundaries**
 
-- All durable state is in Postgres. The API process is stateless apart from Better Auth's database-backed sessions.
+- All durable state is in Postgres. The API process is stateless apart from Better Auth's database-backed sessions and its in-memory rate-limit counts, which a restart clears.
 - Everything is synchronous request/response. Grading happens inline in the submit request.
 - **Dev:** Vite dev server runs `apps/web`; `server.proxy` forwards `/api` to Express, so the browser still sees one origin.
 - **Production:** `npm run build` builds shared, web, and api; Express serves `apps/web/dist`.
 
 > **Assumption:** The route prefixes `/api/teacher` and `/api/public` and the `/t/<token>` client path are this document's proposal. The confirmed constraints are only that the API lives under `/api` and that student and teacher payloads use separate schemas.
 
-> **Assumption:** The Better Auth mounting pattern (`toNodeHandler(auth)` at `/api/auth/*splat` before `express.json()`) comes from the stack advisor's knowledge, not a fetched doc. Confirm it in the first setup task.
+**Proven in TASK-003 (2026-11-03):** `toNodeHandler(auth)` at `/api/auth/*splat` before `express.json()` works on Express 5.3.0 with Better Auth 1.7.15 (`apps/api/test/auth.test.ts`). Better Auth's user, session, account, and verification tables are defined in `db/schema.ts` and created by a generated migration.
 
 ### Data model
 
-Designed to support question reuse across tests, tags, attempts, and per-question analytics. Better Auth manages its own tables (user, session, account, verification); the tables below are the app's.
+Designed to support question reuse across tests, tags, attempts, and per-question analytics. Better Auth manages its own tables (user, session, account, verification); the tables below are the app's. Better Auth's `user.id` is `text`, so every `teacher_id` must be `text` too.
 
 | Table | Key columns | Purpose |
 |---|---|---|
@@ -197,7 +196,7 @@ Security-adjacent rules follow OWASP ASVS and OWASP Session Management guidance,
 5. **Student-facing and teacher-facing schemas are separate in `packages/shared`** (`student/` and `teacher/`). Student schemas must not extend or import from teacher schemas.
 6. **Sessions are same-origin with no CORS.** Do not add the `cors` package or CORS headers. In dev, use Vite `server.proxy`, not cross-origin requests.
 7. **Express serves the built client and the API under `/api`.** All API routes are mounted under `/api`; unknown `/api/*` paths return a JSON 404, never the SPA fallback.
-8. **Mount `toNodeHandler(auth)` at `/api/auth/*splat` before `express.json()`.** (Pending the confirmation noted above.)
+8. **Mount `toNodeHandler(auth)` at `/api/auth/*splat` before `express.json()`.**
 9. **Route handlers contain no business logic or direct SQL.** They validate input with shared Zod schemas and call a service. Only `services/` and `db/` import Drizzle.
 10. **UI components must not call `fetch` or contain data access.** Only `apps/web/src/lib/api.ts` talks to the API, and it parses every response with a shared schema.
 11. **Every `/api/teacher/*` route requires a teacher session, and every query is scoped to that teacher's id.** Ownership checks happen in the service layer, not the client.
@@ -214,7 +213,6 @@ Security-adjacent rules follow OWASP ASVS and OWASP Session Management guidance,
 - Folder layout inside the apps, test locations, and env var names.
 - JSONB for type-specific options and published test snapshots.
 - Default of 1 point per question.
-- Better Auth mounting pattern is from advisor knowledge, not a fetched doc.
 
 **Revisit before build starts:**
 
