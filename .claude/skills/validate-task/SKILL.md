@@ -64,8 +64,8 @@ Updates are automatic — don't ask first.
 - **FAIL:** don't touch `docs/TASKS.md`. Add each thing to fix to `docs/MEMORY.md`
   Known Issues, one line each with its severity and task ID (e.g.
   `[blocker] TASK-007: ...`), replacing older entries from the same task. List
-  the fixes and suggest `/implement-task <TASK-ID>`, which works from those
-  entries.
+  the fixes and suggest `/implement-task <TASK-ID>`, or `/guide-task <TASK-ID>`
+  to fix them by hand. Both work from those entries.
 - **PASS / PASS WITH NOTES:**
   1. In `docs/TASKS.md`, tick the task's *Test*, *Review*, and *Complete*
      boxes (and *Implement* if it isn't already ticked). Touch nothing else.

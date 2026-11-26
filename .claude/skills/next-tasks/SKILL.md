@@ -35,7 +35,8 @@ the docs. Arguments: `$ARGUMENTS`
    criteria:**` block (so `/validate-task` can check against it later).
    Only edit TASKS.md after the user says yes, and only add those blocks —
    never reorder, renumber, or tick checkboxes. Then suggest
-   `/implement-task <TASK-ID>` for the first one.
+   `/implement-task <TASK-ID>` for the first one, or `/guide-task <TASK-ID>` if
+   the user wants to write it themselves.
 
 ## Rules
 
