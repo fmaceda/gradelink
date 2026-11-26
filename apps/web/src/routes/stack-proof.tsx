@@ -1,5 +1,7 @@
 // Temporary TASK-004 stack proof: a loader through lib/api.ts, an action with <Form>, the
 // DESIGN.md tokens, and the shadcn/ui Button, Dialog and Sheet. TASK-010 removes this route.
+
+import { formatPoints } from "@gradelink/shared";
 import {
   type ActionFunctionArgs,
   Form,
@@ -114,6 +116,14 @@ export function StackProof() {
             <li key={index}>{note}</li>
           ))}
         </ul>
+      </section>
+
+      {/* TASK-008 early check that Vite and tsc resolve @gradelink/shared from apps/web. */}
+      <section aria-labelledby="shared-heading" className="space-y-2">
+        <h2 id="shared-heading" className="text-xl font-semibold">
+          Shared package
+        </h2>
+        <p data-testid="shared-format">Two thirds of a point: {formatPoints(2 / 3)}</p>
       </section>
 
       <section aria-labelledby="tokens-heading" className="space-y-3">

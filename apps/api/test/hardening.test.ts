@@ -1,5 +1,5 @@
 import { fileURLToPath } from "node:url";
-import { errorBodySchema } from "@gradelink/shared";
+import { createQuestionBodySchema, errorBodySchema } from "@gradelink/shared";
 import express, { Router } from "express";
 import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from "vitest";
 import { z } from "zod";
@@ -68,6 +68,15 @@ function probeRouter() {
         params: z.strictObject({}),
         query: z.strictObject({}),
       },
+      (_input, _req, res) => {
+        res.status(204).end();
+      },
+    ),
+  );
+  router.post(
+    "/probe/questions",
+    validated(
+      { body: createQuestionBodySchema, params: z.strictObject({}), query: z.strictObject({}) },
       (_input, _req, res) => {
         res.status(204).end();
       },
@@ -427,6 +436,39 @@ describe("API hardening baseline", () => {
         "body.items.0.label",
       ]);
       expect(JSON.stringify(error)).not.toContain("abc123");
+    });
+
+    // validate.ts can't walk into a discriminated union yet, so every field under one is
+    // masked as body.*. That is vague but leaks nothing; TASK-011 extends the walk.
+    it.each([
+      ["an unknown question type", { type: FAKE_TOKEN, prompt: "Pick one" }, ["body.*"]],
+      [
+        "a type that isn't built yet",
+        { type: "short_answer", prompt: "Capital of France?" },
+        ["body.*"],
+      ],
+      [
+        "a bad field inside a known type",
+        {
+          type: "multiple_choice",
+          prompt: "",
+          options: [{ text: FAKE_TOKEN, isCorrect: true }],
+          [FAKE_SECRET]: FAKE_TOKEN,
+        },
+        ["body", "body.*"],
+      ],
+    ])("masks the fields of a discriminated-union body with %s", async (_label, body, fields) => {
+      const response = await fetch(`${baseUrl}/api/probe/questions`, {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify(body),
+      });
+
+      const error = await expectErrorBody(response, 400, "VALIDATION_ERROR");
+      expect(Object.keys(error.error.fields ?? {}).sort()).toEqual(fields);
+      const text = JSON.stringify(error);
+      expect(text).not.toContain(FAKE_TOKEN);
+      expect(text).not.toContain(FAKE_SECRET);
     });
 
     it("rejects a body on a route that takes none", async () => {

@@ -37,7 +37,18 @@ Each section cites the TASK IDs that build the feature. Limits used below come f
 - [ ] Input validation: an update that changes a question's type is rejected, and the editor shows the type as read-only.
 - [ ] Input validation: a prompt of `<img src=x onerror=alert(1)>` is stored and displayed as literal text, never executed.
 
-> **Assumption:** The exact prompt/option length caps and option-count limits are set in TASK-008 and are not stated in any doc; testers should use the values TASK-008 records, one under and one over each.
+**Caps (set in TASK-008, in `packages/shared/src/common/`):** test each at its limit and one past it.
+
+| Field | Limit | Other rules |
+|---|---|---|
+| Prompt | 1–1000 characters after trimming | Newline allowed; every other control character rejected |
+| Option text | 1–200 characters after trimming | Single line, no control characters; repeats within a question (trimmed, ignoring case) rejected |
+| Options per choice question | 2–10 | Multiple choice: exactly one correct. True/false: fixed True/False options |
+| Test title | 1–100 characters after trimming | Single line, no control characters |
+| Student name | 1–80 characters after trimming | Single line, no control characters |
+| Points | greater than 0, at most 1000 | Fractions allowed (0.5); default 1. The 1000 cap is a TASK-008 choice |
+| Questions per test, answers per submit | at most 100 | |
+| Option ids per answer | at most 10 | |
 
 ## Question bank: short-answer and multiple-answer questions (TASK-024, TASK-025)
 
