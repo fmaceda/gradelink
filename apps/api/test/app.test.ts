@@ -97,7 +97,8 @@ describe("Express serving the API and the SPA", () => {
 
     it("answers /api itself and nested unknown paths with a JSON 404", async () => {
       await expectJsonNotFound(await fetch(`${baseUrl}/api`));
-      await expectJsonNotFound(await fetch(`${baseUrl}/api/teacher/questions/123`));
+      // Not under /api/teacher, where a signed-out request gets 401 first (require-teacher.test.ts).
+      await expectJsonNotFound(await fetch(`${baseUrl}/api/no-such-area/questions/123`));
     });
 
     // TASK-037 confirms this across every real route once routers exist.
