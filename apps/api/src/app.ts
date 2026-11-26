@@ -2,29 +2,30 @@ import { existsSync } from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { toNodeHandler } from "better-auth/node";
-import express, { type ErrorRequestHandler, type RequestHandler } from "express";
+import express, { type RequestHandler, type Router } from "express";
 import { auth, writeAuthLog } from "./auth.ts";
+import { env } from "./env.ts";
+import { requireJsonBody } from "./middleware/content-type.ts";
+import { errorHandler, notFound } from "./middleware/error-handler.ts";
+import { requestLog } from "./middleware/request-log.ts";
+import { securityHeaders } from "./middleware/security-headers.ts";
+import { createApiRouter } from "./routes/index.ts";
 
 const JSON_BODY_LIMIT = "100kb";
 
 // The same relative path works from src/ under tsx and from dist/ after the build.
 const DEFAULT_WEB_DIST = fileURLToPath(new URL("../../web/dist", import.meta.url));
 
-// Unexpected auth failures only; Better Auth answers its own API errors (401, 429) itself.
-const handleAuthError: ErrorRequestHandler = (error, _req, res, next) => {
-  writeAuthLog("error", "Auth request failed", error);
-  if (res.headersSent) {
-    next(error);
-    return;
-  }
-  res.status(500).json({
-    error: { code: "INTERNAL_ERROR", message: "Something went wrong. Please try again." },
-  });
-};
+const betterAuthHandler = toNodeHandler(auth);
 
-// ARCHITECTURE.md rule 7: an unknown /api path is a JSON 404, never the SPA's HTML.
-const apiNotFound: RequestHandler = (_req, res) => {
-  res.status(404).json({ error: { code: "NOT_FOUND", message: "Not found." } });
+// Thrown failures go on to errorHandler. Better Auth answers its own API errors itself, including
+// 500s such as the breached-password service being down, and with onAPIError.throw it logs none
+// of them, so a 5xx it answered gets a status-only line here.
+const handleAuth: RequestHandler = async (req, res) => {
+  await betterAuthHandler(req, res);
+  if (res.statusCode >= 500) {
+    writeAuthLog("error", `Better Auth answered ${res.statusCode}`);
+  }
 };
 
 // A missing hashed bundle must fail loudly, not load index.html as JavaScript.
@@ -35,18 +36,34 @@ const assetNotFound: RequestHandler = (_req, res) => {
 type AppOptions = {
   // The built SPA. Tests pass a fixture directory because CI runs them before the build.
   webDist?: string;
+  // Routes under /api. Tests pass a router of probe routes; the app passes its real one.
+  apiRouter?: Router;
+  // Proxy hops trusted for req.ip (env TRUST_PROXY).
+  trustProxy?: number;
 };
 
-// Builds the Express app. Order matters (ARCHITECTURE.md rules 7 and 8): Better Auth mount
-// before express.json(), then routers under /api, a JSON 404 for unknown /api/*, then the SPA.
-export function createApp({ webDist = DEFAULT_WEB_DIST }: AppOptions = {}) {
+// Builds the Express app. Order matters (ARCHITECTURE.md rules 7 and 8): the request log and
+// security headers first so every response gets them, the Better Auth mount before
+// express.json(), routers under /api, a JSON 404 for unknown /api/*, the SPA, then one last
+// JSON 404 and the error handler.
+export function createApp({
+  webDist = DEFAULT_WEB_DIST,
+  apiRouter = createApiRouter(),
+  trustProxy = env.TRUST_PROXY,
+}: AppOptions = {}) {
   const app = express();
+  app.set("trust proxy", trustProxy);
 
-  app.all("/api/auth/*splat", toNodeHandler(auth), handleAuthError);
+  app.use(requestLog);
+  app.use(securityHeaders(env.NODE_ENV === "production"));
 
+  app.all("/api/auth/*splat", handleAuth);
+
+  app.use("/api", requireJsonBody);
   app.use(express.json({ limit: JSON_BODY_LIMIT }));
 
-  app.use("/api", apiNotFound);
+  app.use("/api", apiRouter);
+  app.use("/api", notFound);
 
   // Served whenever a build exists, so the API alone still starts in development and in tests.
   const indexHtml = path.join(webDist, "index.html");
@@ -57,6 +74,9 @@ export function createApp({ webDist = DEFAULT_WEB_DIST }: AppOptions = {}) {
       res.sendFile(indexHtml);
     });
   }
+
+  app.use(notFound);
+  app.use(errorHandler);
 
   return app;
 }

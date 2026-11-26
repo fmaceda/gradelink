@@ -10,7 +10,7 @@ GradeLink is a single-repo npm workspace that ships as one deployable: an Expres
 |---|---|---|---|
 | Frontend | React + Vite SPA, React Router (library/data router mode); Recharts for analytics charts | React 19.3.1, @types/react 19.3.0, @types/react-dom 19.3.0, Vite 8.3.5, @vitejs/plugin-react 6.2.1, React Router 8.5.1; Recharts 3.11.0 proven with React 19.3.1 in a scratch project, not installed | No SSR need. A static SPA works on phones and is served by Express, so there is one deployable. |
 | Styling | Tailwind CSS with shadcn/ui (Vite path) | Tailwind CSS 4.3.3, @tailwindcss/vite 4.3.3; shadcn/ui (CLI 4.23.0, Radix base) proven with Tailwind 4.3 and React 19.3 | Fast, mobile-friendly UI without hand-rolling components. |
-| Backend | Express, TypeScript (strict) on Node.js LTS; Zod for validation and shared types | Express 5.3.0, @types/express 5.0.6, TypeScript 6.0.3, @types/node 26.6.6, Node.js 26.13.0 LTS, Zod 4.6.7; dev runner tsx 4.23.15; express-rate-limit 8.7.3 and helmet 8.3.0 recorded, not yet installed | Small, well-known REST layer. One language across API, client, and shared schemas. Grading and answer keys stay server-side in `apps/api`. |
+| Backend | Express, TypeScript (strict) on Node.js LTS; Zod for validation and shared types | Express 5.3.0, @types/express 5.0.6, TypeScript 6.0.3, @types/node 26.6.6, Node.js 26.13.0 LTS, Zod 4.6.7; dev runner tsx 4.23.15; express-rate-limit 8.7.3 and helmet 8.3.0 (proven on Express 5.3.0 in TASK-005) | Small, well-known REST layer. One language across API, client, and shared schemas. Grading and answer keys stay server-side in `apps/api`. |
 | Database | PostgreSQL with Drizzle ORM | PostgreSQL: managed host's current major (not confirmed); Drizzle ORM 0.45.4, drizzle-kit 0.31.11, pg 8.23.1 | Connected data (questions reused across tests, tags) and analytics aggregates are core features. Typed SQL through Drizzle. |
 | Authentication | Better Auth, email and password, teachers only | Better Auth 1.7.15 | Avoids owning security-sensitive session code. Students have no accounts. |
 | Deployment / Hosting | Railway Hobby with Railway Postgres in the same project; GitHub Actions for CI | $5/month, includes $5 of usage | One vendor for app and database. Express serves the built client and the API under `/api`. |
@@ -19,7 +19,6 @@ Supporting tooling (restated from the confirmed stack): Vitest 5.0.5 and Playwri
 
 **Not yet confirmed (prove in early setup tasks, do not treat as settled):**
 
-- express-rate-limit and helmet compatibility with Express 5 (TASK-005).
 - Railway Postgres major version, backups, and pricing; Hobby commercial-use terms. Check before storing real student data.
 
 **Proven in TASK-001 (2026-11-03):** the pinned versions exist on the npm registry, and TypeScript, Biome, Vitest, the production build, and `tsx` running Express 5 all work together on Node 26.13.0. `STACK.md` holds the details.
@@ -27,6 +26,8 @@ Supporting tooling (restated from the confirmed stack): Vitest 5.0.5 and Playwri
 **Proven in TASK-002 (2026-11-03):** Drizzle ORM, drizzle-kit, and `pg` work together: migrations generate and apply, and a query runs. `STACK.md` holds the details.
 
 **Proven in TASK-004 (2026-11-21):** React Router 8.5.1 in library/data mode, Tailwind 4.3 with the DESIGN.md tokens, shadcn/ui (Button, Dialog, Sheet) through its CLI, and Recharts 3.11.0 under React 19.3.1 (scratch project only). Express serves the built SPA, as described under Request flows. `STACK.md` holds the details. Sign-in through the Vite proxy is still unchecked (no local database at the time).
+
+**Proven in TASK-005 (2026-11-25):** helmet 8.3.0 and express-rate-limit 8.7.3 work on Express 5.3.0 (`apps/api/test/hardening.test.ts`). `STACK.md` holds the details.
 
 ## System Architecture
 
@@ -57,7 +58,8 @@ Supporting tooling (restated from the confirmed stack): Vitest 5.0.5 and Playwri
 - All durable state is in Postgres. The API process is stateless apart from Better Auth's database-backed sessions and its in-memory rate-limit counts, which a restart clears.
 - Everything is synchronous request/response. Grading happens inline in the submit request.
 - **Dev:** Vite dev server runs `apps/web`; `server.proxy` forwards `/api` to Express, so the browser still sees one origin.
-- **Production:** `npm run build` builds shared, web, and api; Express serves `apps/web/dist`. `createApp()` mounts, in order: Better Auth, `express.json`, the `/api` routers, the JSON 404 for the rest of `/api`, static files, a plain 404 for missing `/assets/*`, and `index.html` for any other GET or HEAD. The static part is mounted only when `dist/index.html` exists (no `NODE_ENV` check), so the API runs alone in development and tests. `createApp({ webDist })` lets tests pass a fixture directory.
+- **Production:** `npm run build` builds shared, web, and api; Express serves `apps/web/dist`. `createApp()` mounts, in order: the request log, helmet, Better Auth, the JSON-only body check on `/api`, `express.json` (100 KB), the `/api` routers, the JSON 404 for the rest of `/api`, static files, a plain 404 for missing `/assets/*`, `index.html` for any other GET or HEAD, a final JSON 404, and the error handler. The static part is mounted only when `dist/index.html` exists (no `NODE_ENV` check), so the API runs alone in development and tests. `createApp({ webDist, apiRouter, trustProxy })` lets tests pass a fixture directory, a router of probe routes, and a `trust proxy` hop count (default `env.TRUST_PROXY`).
+- **Errors and logs (TASK-005):** services and handlers throw `AppError` (`errors.ts`). The last handler (`middleware/error-handler.ts`) returns `{ error: { code, message, fields? } }` using the shared `errorBodySchema` and error-code enum in `packages/shared/src/common/errors.ts`, and logs unexpected errors by code only. Handlers get parsed body, params and query from `validated()` (`middleware/validate.ts`). Every request writes one stderr line with a server-generated id (also sent as `X-Request-Id`), method, route pattern and status (`middleware/request-log.ts`).
 
 > **Assumption:** The route prefixes `/api/teacher` and `/api/public` and the `/t/<token>` client path are this document's proposal. The confirmed constraints are only that the API lives under `/api` and that student and teacher payloads use separate schemas.
 
@@ -126,6 +128,7 @@ gradelink/                      # = output/gradelink/ (the project root)
 │   │   │   ├── index.ts        # process entry: load env, start server
 │   │   │   ├── app.ts          # builds the Express app (auth mount, routers, static + SPA fallback)
 │   │   │   ├── errors.ts       # AppError, thrown by services and handlers; imports nothing from Express
+│   │   │   ├── log.ts          # the one log writer (stderr) and the code-only error formatter
 │   │   │   ├── auth.ts         # Better Auth instance
 │   │   │   ├── db/
 │   │   │   │   ├── client.ts   # pg pool + Drizzle instance
@@ -136,7 +139,7 @@ gradelink/                      # = output/gradelink/ (the project root)
 │   │   │   ├── dto/            # explicit student response DTO mappers (allow-listed fields)
 │   │   │   ├── services/       # business logic called by routes (tests, snapshots, analytics)
 │   │   │   ├── grading/        # ONLY place grading lives (score, normalize, partial credit)
-│   │   │   └── middleware/     # requireTeacher, error handler, validation
+│   │   │   └── middleware/     # requireTeacher, error handler, validation, security headers, request log, rate limit
 │   │   ├── drizzle/            # generated SQL migrations (drizzle-kit)
 │   │   ├── test/               # Vitest: grading, services, student payload allow-list test
 │   │   ├── drizzle.config.ts
@@ -171,7 +174,7 @@ gradelink/                      # = output/gradelink/ (the project root)
 ├── tsconfig.base.json          # strict TypeScript settings shared by all packages
 ├── biome.json
 ├── .nvmrc                      # Node 26.x
-├── .env.example                # DATABASE_URL, BETTER_AUTH_SECRET, BETTER_AUTH_URL
+├── .env.example                # DATABASE_URL, BETTER_AUTH_SECRET, BETTER_AUTH_URL, TRUST_PROXY
 └── .gitignore
 ```
 

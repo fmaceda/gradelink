@@ -139,10 +139,10 @@ Verify helmet and express-rate-limit versions work with Express 5 by running the
 - Better Auth's own 500s, including the breached-password service being down, get a code-only log line.
 - Router mount paths stay static (BP-046).
 
-- [ ] Implement
-- [ ] Test
-- [ ] Review
-- [ ] Complete
+- [x] Implement
+- [x] Test
+- [x] Review
+- [x] Complete
 
 ### TASK-006: CI, secret scanning, and dependency audit
 

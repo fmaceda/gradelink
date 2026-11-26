@@ -4,6 +4,7 @@ import { haveIBeenPwned } from "better-auth/plugins/haveibeenpwned";
 import { db } from "./db/client.ts";
 import * as schema from "./db/schema.ts";
 import { env } from "./env.ts";
+import { errorCode, writeLogLine } from "./log.ts";
 
 const ONE_HOUR_IN_SECONDS = 60 * 60;
 const SIGN_IN_LIMIT = { window: 60, max: 10 };
@@ -14,23 +15,18 @@ const MAX_LOG_MESSAGE_LENGTH = 200;
 
 const isProduction = env.NODE_ENV === "production";
 
-function errorCode(args: unknown[]) {
-  for (const arg of args) {
-    if (arg instanceof Error) {
-      const { code, cause } = arg as Error & { code?: unknown; cause?: { code?: unknown } };
-      return String(cause?.code ?? code ?? arg.name);
-    }
-  }
-  return undefined;
-}
-
 // Better Auth logs failed queries with Drizzle's error, whose message holds the query params:
 // session tokens and password hashes (BP-043). So the extra arguments are never written, only
-// one short line of Better Auth's own message and an error code.
-export function writeAuthLog(level: string, message: string, ...args: unknown[]) {
-  const line = (message.split(/\r?\n/, 1)[0] ?? "").slice(0, MAX_LOG_MESSAGE_LENGTH);
-  const code = errorCode(args);
-  process.stderr.write(`[auth] ${level}: ${line}${code ? ` (${code})` : ""}\n`);
+// one short line of Better Auth's own message and an error code. Some routes pass an Error as
+// the message itself, so a non-string message is reduced to its code too.
+export function writeAuthLog(level: string, message: unknown, ...args: unknown[]) {
+  const text =
+    typeof message === "string"
+      ? (message.split(/\r?\n/, 1)[0] ?? "").slice(0, MAX_LOG_MESSAGE_LENGTH)
+      : "(non-text message)";
+  const error = [message, ...args].find((arg) => arg instanceof Error);
+  const code = error === undefined ? "" : ` (${errorCode(error)})`;
+  writeLogLine(`[auth] ${level}: ${text}${code}`);
 }
 
 export const auth = betterAuth({

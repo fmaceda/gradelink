@@ -1,5 +1,7 @@
 import { z } from "zod";
 
+export * from "./errors.ts";
+
 export const questionTypeSchema = z.enum([
   "multiple_choice",
   "multiple_answer",

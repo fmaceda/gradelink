@@ -7,6 +7,7 @@ const VALID = {
   DATABASE_URL: "postgres://fake-user:fake-db-password@localhost:5432/fake",
   BETTER_AUTH_SECRET: "fabricated-secret-value-for-tests-only",
   BETTER_AUTH_URL: "http://localhost:3000",
+  TRUST_PROXY: undefined,
 };
 const PLACEHOLDER = "replace-me-with-a-long-random-value";
 
@@ -48,6 +49,27 @@ describe("env", () => {
 
   it("rejects an invalid PORT", async () => {
     await expect(loadEnv({ PORT: "not-a-port" })).rejects.toThrow("PORT");
+  });
+
+  describe("TRUST_PROXY", () => {
+    it("defaults to 0, trusting no proxy", async () => {
+      expect((await loadEnv()).TRUST_PROXY).toBe(0);
+    });
+
+    it.each([
+      ["0", 0],
+      ["1", 1],
+      ["2", 2],
+    ])("accepts %s", async (value, expected) => {
+      expect((await loadEnv({ TRUST_PROXY: value })).TRUST_PROXY).toBe(expected);
+    });
+
+    it.each(["", "-1", "1.5", "true", "loopback", "10.0.0.0/8", " 1"])(
+      "rejects %j",
+      async (value) => {
+        await expect(loadEnv({ TRUST_PROXY: value })).rejects.toThrow("TRUST_PROXY");
+      },
+    );
   });
 
   it("never includes values in the error", async () => {
