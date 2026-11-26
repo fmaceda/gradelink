@@ -102,4 +102,4 @@ TASK-010 — Teacher sign-in, create-account, and app shell (web). Not started.
 
 ## Next Step
 
-Commit TASK-009 on `feat/require-teacher`, push and merge it. Then `/next-tasks TASK-010`. TASK-010 also owns several TASK-004 and TASK-005 Known Issues: the root `ErrorBoundary`, button sizes and hover colours, the Dialog CSP check, the `name` field at sign-up, and the bundle size. Still open from TASK-006: confirm `Secret scan` fails on a throwaway branch with a fabricated token, and that CI is green on `main`.
+Commit TASK-009 on `feat/require-teacher`, push and merge it. Stories for TASK-010 to TASK-012 are saved in TASKS.md (decisions accepted 2026-11-26), so next is `/implement-task TASK-010`. TASK-010 also owns several TASK-004 and TASK-005 Known Issues: the root `ErrorBoundary`, button sizes and hover colours, the Dialog CSP check, the `name` field at sign-up, and the bundle size. Still open from TASK-006: confirm `Secret scan` fails on a throwaway branch with a fabricated token, and that CI is green on `main`.
