@@ -338,7 +338,7 @@ Sign-in and create-account pages with button loading state, inline errors focuse
 - 401 handling owned here
 - subpath exports here, not TASK-021
 
-- [ ] Implement
+- [x] Implement
 - [ ] Test
 - [ ] Review
 - [ ] Complete
