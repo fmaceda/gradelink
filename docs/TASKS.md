@@ -339,9 +339,9 @@ Sign-in and create-account pages with button loading state, inline errors focuse
 - subpath exports here, not TASK-021
 
 - [x] Implement
-- [ ] Test
-- [ ] Review
-- [ ] Complete
+- [x] Test
+- [x] Review
+- [x] Complete
 
 ### TASK-011: Question bank API for multiple choice and true/false
 

@@ -10,7 +10,7 @@ pull the next task into "Current Task."
 
 ## Current Status
 
-TASK-009 is merged to `main` (PR #11). TASK-010 is implemented on branch `feat/teacher-shell`: part A is committed, part B is uncommitted. Sign-in and create-account forms, the per-response CSP nonce for Radix's scroll lock, and the Playwright e2e suite are in. All 180 API tests, 53 web tests, 132 shared tests, the 6 e2e tests, lint, typecheck and build pass with local Postgres running.
+TASK-010 passed validation with notes on 2026-11-26 and is committed on `feat/teacher-shell` (not pushed, no PR yet). TASK-011 is next. All 180 API tests, 53 web tests, 132 shared tests, the 6 e2e tests, lint, typecheck and build pass with local Postgres running.
 
 ## Completed
 
@@ -24,15 +24,23 @@ TASK-009 is merged to `main` (PR #11). TASK-010 is implemented on branch `feat/t
 - TASK-008 — Shared Zod schemas for multiple choice and true/false
 - TASK-007 — Core database schema and first migration
 - TASK-009 — requireTeacher, teacher-scoping helpers, and the two-teacher test harness
+- TASK-010 — Teacher sign-in, create-account, and app shell (web)
 
 ## Current Task
 
-TASK-010 — Teacher sign-in, create-account, and app shell (web). Built in two parts (owner decision, 2026-11-26), both done; *Implement* is ticked. Awaiting `/validate-task TASK-010`.
-
-For the validator: criterion 12 was checked with the Sheet (Radix's Dialog primitive, same scroll lock) and the dropdown menu. No screen uses a standalone Dialog yet. The check found the scroll lock's `<style>` blocked, and the fix is a per-response nonce in `style-src-elem`, plus Zod `jitless` to stop its `eval` probe's report (SECURITY.md Input Validation). That widens criterion 12's "record it" into an API change (`security-headers.ts`, `app.ts` serving `index.html`).
+TASK-011 — Question bank API for multiple choice and true/false. Stories and decisions are saved in TASKS.md. Not started.
 
 ## Known Issues
 
+- [minor] TASK-010: `express.static` in `apps/api/src/app.ts:77` still serves `/index.html` as a file, with the raw `__CSP_NONCE__` placeholder and no `Cache-Control: no-cache`. A visit to `/index.html` loads the SPA with a nonce that matches nothing, so the scroll lock is blocked again. Not a security hole. Fix: send `/index.html` to the templated handler before the static middleware, and add a test next to the nonce test in `app.test.ts`.
+- [minor] TASK-010: the entry chunk carries the teacher question schemas (confirmed: "Must name one of the question's options." is in `index-*.js`), because `lib/api.ts` imports the whole `@gradelink/shared/teacher` barrel. Fix: move the session and auth schemas to their own subpath (or `common`) so the entry pulls in only those. Check together with TASK-021's student-route bundle check.
+- [minor] TASK-010: `signUpError` in `apps/web/src/routes/auth/create-account.tsx:34` maps only four Better Auth codes. `INVALID_EMAIL` (Better Auth's email check can disagree with `z.email`) falls through to "Something went wrong". The `PASSWORD_TOO_SHORT` and `PASSWORD_TOO_LONG` branches have no test. Fix: map `INVALID_EMAIL` to an email field error, and test the two length codes.
+- [minor] TASK-010: the sign-out error in `apps/web/src/routes/teacher/layout.tsx:132` (`signOut.data?.error`) stays on screen across navigation until the next sign-out attempt. Fix: clear it on navigation or when the menu reopens.
+- [nit] TASK-010: `commonErrorMessage` in `apps/web/src/routes/auth/form.tsx:38` reports every `TypeError` as a network failure, so a programming error would show "We couldn't reach GradeLink". Fix: catch the `TypeError` only around `fetch` in `requestJson` and throw a dedicated `NetworkError`.
+- [nit] TASK-010: `nameFromEmail` in `apps/web/src/lib/api.ts:106` cuts at 80 UTF-16 units, which can split a surrogate pair. Fix: cut with `Array.from(...)`, or check `isWellFormed()` and fall back.
+- [note] TASK-010: the CSP fix relies on `get-nonce` reading the `__webpack_nonce__` global, an internal of Radix's `react-remove-scroll`. Only the e2e test catches a break, and it isn't in CI until TASK-021. Re-run `npm run e2e -w @gradelink/web` after any Radix upgrade.
+- [nit] TASK-010: SECURITY.md Input Validation still opens with "`style-src` may allow `unsafe-inline` only if TASK-005 proves...". Rewrite it to the current state (nonce in `style-src-elem`, never `unsafe-inline`).
+- [nit] Docs gap (TASK-010): BEST_PRACTICES has no rules for CSP changes and nonce handling, for mapping Better Auth error codes to fixed messages, or for e2e tests (no network calls, fabricated accounts only).
 - [minor] TASK-009: `requireTeacher` forwards Better Auth's `Set-Cookie` (`returnHeaders: true`, `require-teacher.ts:37-52`) for session refresh and clear-on-expiry. Criterion 1 didn't ask for this. It's sound and tested. Record it as an accepted change in TASKS.md or DECISIONS.md so the code and the criterion agree. Untested edge case: a lookup that fails after a partial refresh could leave a stale `Set-Cookie` on the 500.
 - [minor] TASK-009: `uniqueIp` in `test/support/teachers.ts:43` restarts at `10.30.0.2` in every test file. That's safe only because Better Auth's rate-limit store is in memory per Vitest worker. Fix: seed the counter per worker (`VITEST_POOL_ID` or `process.pid`), or note the assumption.
 - [nit] Docs gap (TASK-009): BEST_PRACTICES has no rule that route ids are parsed as uuid before a by-id service lookup. It's implied by BP-005; add it next to BP-031.
@@ -93,4 +101,4 @@ For the validator: criterion 12 was checked with the Sheet (Radix's Dialog primi
 
 ## Next Step
 
-`/validate-task TASK-010`. Commit part B first if you want a clean diff for it. Still open from TASK-006: confirm `Secret scan` fails on a throwaway branch with a fabricated token, and that CI is green on `main`.
+Push `feat/teacher-shell` and open the PR for TASK-010 when you're ready. Then `/implement-task TASK-011`; its criteria already cover extending `validate.ts`'s union walk and keeping `updated_at` current (`.$onUpdate` or the service) (see the TASK-005 and TASK-007 entries). Still open from TASK-006: confirm `Secret scan` fails on a throwaway branch with a fabricated token, and that CI is green on `main`.
