@@ -99,10 +99,10 @@ Stand up `apps/web` with Vite, React 19.3, React Router 8 in library/data mode (
 - Unknown `/api/auth/*` paths keep Better Auth's own response shape (ARCHITECTURE rule 7). A test proves the response is JSON and never HTML.
 - The JSON 404 test also covers a wrong method on a known path. TASK-037 confirms this across all routes.
 
-- [ ] Implement
-- [ ] Test
-- [ ] Review
-- [ ] Complete
+- [x] Implement
+- [x] Test
+- [x] Review
+- [x] Complete
 
 ### TASK-005: API hardening baseline (helmet, rate-limit plumbing, body limit, error handler)
 

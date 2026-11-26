@@ -1,3 +1,100 @@
 @import "tailwindcss";
+@import "tw-animate-css";
+@import "shadcn/tailwind.css";
 
-/* DESIGN.md tokens go in an @theme block (TASK-004). */
+/* Light only (DESIGN.md). Generated shadcn components carry dark: classes; this keeps them inert
+   until a dark theme is designed. */
+@custom-variant dark (&:is(.dark *));
+
+/* DESIGN.md palette as shadcn/ui variables. Changing the look means editing these values. */
+:root {
+  --background: #ffffff;
+  --foreground: #0f172a; /* Slate 900 */
+  --card: #f8fafc; /* Surface: Slate 50 */
+  --card-foreground: #0f172a;
+  --popover: #ffffff;
+  --popover-foreground: #0f172a;
+  --primary: #4f46e5; /* Indigo 600 */
+  --primary-hover: #4338ca; /* Indigo 700 */
+  --primary-foreground: #ffffff;
+  --secondary: #f1f5f9; /* Slate 100 */
+  --secondary-hover: #e2e8f0; /* Slate 200 */
+  --secondary-foreground: #0f172a;
+  --muted: #f1f5f9;
+  --muted-foreground: #475569; /* Slate 600 */
+  --accent: #f1f5f9;
+  --accent-foreground: #0f172a;
+  --destructive: #b91c1c; /* Red 700 */
+  --destructive-tint: #fef2f2; /* Red 50 */
+  --success: #15803d; /* Green 700 */
+  --success-tint: #f0fdf4; /* Green 50 */
+  --warning: #b45309; /* Amber 700 */
+  --warning-tint: #fffbeb; /* Amber 50 */
+  --border: #e2e8f0; /* Slate 200 */
+  --input: #cbd5e1; /* Slate 300: input borders */
+  --ring: #4f46e5;
+  --chart-1: #4f46e5;
+  --chart-2: #15803d;
+  --chart-3: #b45309;
+  --chart-4: #475569;
+  --chart-5: #b91c1c;
+  --radius: 0.5rem; /* rounded-lg, 8 px: cards */
+}
+
+@theme inline {
+  /* System fonts only: no web font download on students' phones (DESIGN.md Typography). */
+  --font-sans: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  --font-heading: var(--font-sans);
+  --font-mono: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-primary: var(--primary);
+  --color-primary-hover: var(--primary-hover);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-hover: var(--secondary-hover);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-destructive: var(--destructive);
+  --color-destructive-tint: var(--destructive-tint);
+  --color-success: var(--success);
+  --color-success-tint: var(--success-tint);
+  --color-warning: var(--warning);
+  --color-warning-tint: var(--warning-tint);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+  --color-chart-1: var(--chart-1);
+  --color-chart-2: var(--chart-2);
+  --color-chart-3: var(--chart-3);
+  --color-chart-4: var(--chart-4);
+  --color-chart-5: var(--chart-5);
+
+  --radius-sm: calc(var(--radius) * 0.5);
+  --radius-md: calc(var(--radius) * 0.75); /* rounded-md, 6 px: controls */
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) * 1.5);
+  --radius-2xl: calc(var(--radius) * 2);
+  --radius-3xl: calc(var(--radius) * 3);
+  --radius-4xl: calc(var(--radius) * 4);
+}
+
+@layer base {
+  * {
+    @apply border-border outline-ring/50;
+  }
+  html {
+    @apply font-sans;
+  }
+  body {
+    @apply bg-background text-foreground;
+  }
+}
