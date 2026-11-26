@@ -177,6 +177,34 @@ Add `.github/workflows/ci.yml`: `npm ci`, typecheck, Biome, Vitest, build, with 
 
 Drizzle tables for `questions`, `tests`, `test_questions`, `test_snapshots`, `attempts`, and `attempt_answers` per ARCHITECTURE.md: `numeric` for points and scores, `timestamptz` timestamps, JSONB columns typed with `.$type<T>()`, `source_question_id` with `ON DELETE SET NULL`, cascades from test to its children and from attempt to its answers, unique `share_token`, no unique constraint on (`test_id`, `student_name`), and the indexes BP-017 lists. Generate and commit the migration. Tags tables come in TASK-027.
 
+**Order (accepted 2026-11-25):** Do this task after TASK-008. BP-016 says JSONB `.$type<T>()` takes `T` from the shared schema, so the schemas have to exist first. The numbering stays as it is.
+
+**Story:** As a developer, I want the six core tables defined in Drizzle with a generated, committed migration, so that the question, test and attempt features have a typed, indexed schema that cascades correctly.
+
+**Acceptance criteria:**
+
+1. Migrations `0000`/`0001` (the `stack_proof` create and drop) and `0002` (auth) are squashed into one clean baseline, in its own `chore:` commit. This is allowed only because no shared or Railway database has applied them (owner confirmed 2026-11-25). Local databases are reset. `docs/STACK.md` records the squash, and the TASK-002 migration known issue in MEMORY.md is closed.
+2. `db/schema.ts` defines `questions`, `tests`, `test_questions`, `test_snapshots`, `attempts` and `attempt_answers` with ARCHITECTURE.md's columns, including `questions.archived_at`. Primary keys are `uuid` with `defaultRandom()`. Each `teacher_id` is `text` and references `user.id`.
+3. `points`, `score`, `max_score`, `awarded_points` and `max_points` are `numeric`. A test inserts `0.5` and reads back exactly `0.5` (BP-033).
+4. All timestamps are `timestamptz` (BP-018). Each JSONB column (`options`, `answer_key`, snapshot `content`, `response`) uses `.$type<T>()`, with `T` inferred from the TASK-008 shared schemas (BP-016).
+5. `type` is `text` with a CHECK constraint for the four question types: `multiple_choice`, `multiple_answer`, `true_false`, `short_answer`. `status` is `text` with a CHECK for `draft`, `published`, `closed`. A test shows the database rejects any other value.
+6. `test_questions` has the composite primary key (`test_id`, `question_id`), which enforces no repeats. `position` is an integer, read in ascending order. There's no unique (`test_id`, `position`) index yet.
+7. `attempt_answers.snapshot_question_key` is a column. The same key appears inside each question entry in `test_snapshots.content`.
+8. The foreign keys work as follows, and a database test checks both deletes:
+   - `source_question_id` is `ON DELETE SET NULL`.
+   - Deleting a test deletes its `test_questions`, its snapshot, its attempts and their answers.
+   - Deleting an attempt deletes its answers.
+9. `share_token` is unique, and `test_snapshots.test_id` is unique. There's no unique constraint on (`test_id`, `student_name`): two attempts with the same name both insert (BP-030).
+10. These BP-017 indexes exist:
+    - `teacher_id` on `questions` and `tests`
+    - `test_id` and `snapshot_id` on `attempts`
+    - `attempt_id` and `source_question_id` on `attempt_answers`
+    - `share_token`
+11. The generated migration is committed. It holds schema statements only and applies cleanly to a fresh database with `db:migrate`. Running generate again produces nothing new (BP-015).
+12. There are no tags tables, services, routes or share-token generation. ARCHITECTURE.md's Data model records the uuid primary keys, the CHECK constraints and the `position` rules.
+
+**Decisions (accepted 2026-11-25, from the Product Owner's suggestions):** uuid primary keys. `text` plus CHECK rather than `pgEnum`, because it's easier to change later. Squash before any shared database exists.
+
 - [ ] Implement
 - [ ] Test
 - [ ] Review
@@ -186,14 +214,64 @@ Drizzle tables for `questions`, `tests`, `test_questions`, `test_snapshots`, `at
 
 In `packages/shared`: `common/` (question type enum, ids), `teacher/` (full question with answer key, test, request bodies as `z.strictObject`), and `student/` (the three response shapes: open test content, closed-test response, submit response; plus the strict submit request). Question types as a discriminated union on `type`, with only `multiple_choice` and `true_false` for now. Include length caps: prompt and option text, name 1-80 after trim with control characters rejected, option counts. Student schemas must not import from `teacher/`; add a test that enforces it. Add a single shared score formatter: points to at most 2 decimals, percentages to 1 decimal.
 
-- [ ] Implement
-- [ ] Test
-- [ ] Review
-- [ ] Complete
+**Order (accepted 2026-11-25):** This task runs before TASK-007, whose JSONB column types come from these schemas.
+
+**Story:** As a developer, I want shared Zod schemas and one score formatter, so that the API, the client and JSONB validation share one contract, and student types can never carry an answer key.
+
+**Acceptance criteria:**
+
+1. `common/` has:
+   - the question-type enum with all four values
+   - the uuid id schemas (`z.uuid()`)
+   - the short option-id schema, for ids like `"a"` that are unique within one question
+
+   Question shapes are a `z.discriminatedUnion("type")` of `multiple_choice` and `true_false` only. A test shows `short_answer` and `multiple_answer` bodies are rejected until TASK-024 (BP-007).
+2. True/false uses fixed True/False options with `correctOptionIds`, the same shape as multiple choice, so grading and the unknown-option rule work the same way for both.
+3. `teacher/` has the full question with its answer key, the test, and request bodies as `z.strictObject` (BP-006). Tests show that:
+   - `teacher_id` or any other extra key is rejected
+   - a multiple-choice question needs exactly one correct option and 2 to 10 options
+   - option text that repeats within a question, after trimming and ignoring case, is rejected
+   - points of 0, below 0 or non-numeric are rejected, `0.5` is accepted, and the default is 1
+4. The caps are prompt 1–1000 characters, option text 1–200 and title 1–100. Each is tested at its limit and one past it, and the values are recorded in TEST_PLAN.md in place of the line-40 note. Prompts reject control characters except newline. Option text and titles are single-line and reject all control characters.
+5. The person-name schema trims, needs 1–80 characters after trimming and rejects control characters: `"  Ana  "` becomes `Ana`, a name of only spaces is rejected, 80 characters pass and 81 fail.
+6. `student/` has the open-test content, the closed-test response (title and status only), the submit response (score and max score only) and a strict submit request. Each answer in the request is an array of option ids for its question. The number of answers, the ids per answer and the name length are capped. No student schema has an answer-key field, and student options are `{ id, text }` only.
+7. A Vitest test fails if anything in `student/` imports from `teacher/`, directly or through re-exports (ARCHITECTURE.md rule 5). A one-off violating import, not committed, shows the test catches it.
+8. The score formatter lives in `common/`. It writes points with at most 2 decimals and percentages with 1. Table tests cover `0.5`, `1/3`, `2.005`, `66.666…`, `0`, `100` and `0.1+0.2`. It only formats: it doesn't compute or grade (ARCHITECTURE.md rule 1). The API computes percentages.
+9. A test covers the `fields` output for an invalid discriminated-union body. Extending `unwrap` in `validate.ts` belongs to TASK-011.
+10. Everything is exported from `index.ts` with `.ts` imports and `z.infer` types. Typecheck and build pass, and the API imports shared at runtime. As an early check, Vite and `tsc` resolve one shared import from `apps/web`. The full web check stays with TASK-010.
+
+**Decisions (accepted 2026-11-25, from the Product Owner's suggestions):**
+- caps as listed
+- 2 to 10 options, with duplicate text rejected
+- fixed True/False options
+- short option ids generated by the API
+- an array of option ids per answer
+- the newline exception for prompts only
+- the formatter in `common/`
+
+- [x] Implement
+- [x] Test
+- [x] Review
+- [x] Complete
 
 ### TASK-009: requireTeacher, teacher-scoping helpers, and the two-teacher test harness
 
 Build `requireTeacher` (session via `auth.api.getSession` with `fromNodeHeaders`, teacher id on typed `res.locals`) and mount all `/api/teacher/*` behind it. Build the Vitest harness that creates two teacher accounts, signs both in, and offers a helper asserting that teacher B gets 404 (not 403) for teacher A's resource. This is the seed of the cross-teacher isolation test; every later teacher route adds cases to it in the same task.
+
+**Story:** As a developer, I want one `requireTeacher` middleware, teacher-scoping helpers and a two-teacher harness, so that every later teacher route is authenticated, scoped to its owner, and tested for cross-teacher leaks from day one.
+
+**Acceptance criteria:**
+
+1. `requireTeacher` (`middleware/require-teacher.ts`) gets the user only through `auth.api.getSession({ headers: fromNodeHeaders(req.headers) })` and puts the teacher id on a typed `res.locals` (BP-012). Sending `x-teacher-id` or `teacher_id` has no effect. Teachers with an unverified email are allowed through, because email verification is out of the MVP.
+2. A missing, garbage, expired or signed-out cookie gets 401 `UNAUTHENTICATED` in the shared error shape. Replaying a cookie after sign-out also gets 401.
+3. The middleware is mounted statically at `/api/teacher`, before an empty `routes/teacher/index.ts` (BP-046), and affects nothing else. A signed-out `/api/teacher/nope` gets 401. A signed-in one gets a JSON 404. The stale "from TASK-008 on" comment in `routes/index.ts` is fixed.
+4. The owned-resource lookup helper lives in `services/`. It can't be called without a `teacherId`, which always goes in the `where` clause. Another teacher's row gives the same `AppError(404, "NOT_FOUND")` as an id that doesn't exist (BP-031).
+5. The harness (`apps/api/test/support/`) signs up and signs in two teachers through the real Better Auth endpoints. It uses a distinct IP per sign-up and mocks the breached-password check, as `auth.test.ts` does. Cleanup runs in `finally` even when a test fails, and rate limits and origin checks stay on.
+6. `expectNotFoundForOtherTeacher` asserts that teacher A succeeds and teacher B gets a 404 whose body is identical to the 404 for a missing id, never 403. It's proven with probe routes: a scoped probe passes, and an unscoped probe makes the helper fail.
+7. A short note explains how later tasks add cases. The route-inventory check is left to TASK-037.
+8. Rejected-session logs contain no cookie, token or session id (BP-043).
+
+**Decisions (accepted 2026-11-25, from the Product Owner's suggestions):** probe routes rather than domain tables. The helper goes in `services/`. Cross-teacher 404 bodies must be identical to missing-id 404 bodies. Unverified email is allowed.
 
 - [ ] Implement
 - [ ] Test
