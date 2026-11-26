@@ -1,1 +1,0 @@
-DROP TABLE "stack_proof" CASCADE;
