@@ -1,6 +1,6 @@
 import type { ErrorBody } from "@gradelink/shared";
 import type { ErrorRequestHandler, RequestHandler } from "express";
-import { AppError } from "../errors.ts";
+import { AppError, notFoundError } from "../errors.ts";
 import { errorCode, writeLogLine } from "../log.ts";
 
 const INTERNAL_ERROR: ErrorBody = {
@@ -56,7 +56,7 @@ function bodyOf(error: AppError): ErrorBody {
 // The JSON 404 for anything nothing else answered: unknown /api paths and, past the SPA,
 // non-GET requests and paths when there's no build (ARCHITECTURE.md rule 7).
 export const notFound: RequestHandler = () => {
-  throw new AppError(404, "NOT_FOUND", "Not found.");
+  throw notFoundError();
 };
 
 // Registered last (BP-009). Returns `{ error: { code, message } }` and never a stack, SQL or

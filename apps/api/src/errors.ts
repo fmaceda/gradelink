@@ -16,3 +16,9 @@ export class AppError extends Error {
     this.fields = fields;
   }
 }
+
+// The one 404. An unknown path, a missing id and another teacher's id all answer with this, so
+// a response never reveals that a resource exists (BP-031, BP-045).
+export function notFoundError() {
+  return new AppError(404, "NOT_FOUND", "Not found.");
+}
