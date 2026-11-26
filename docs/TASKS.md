@@ -273,10 +273,10 @@ Build `requireTeacher` (session via `auth.api.getSession` with `fromNodeHeaders`
 
 **Decisions (accepted 2026-11-25, from the Product Owner's suggestions):** probe routes rather than domain tables. The helper goes in `services/`. Cross-teacher 404 bodies must be identical to missing-id 404 bodies. Unverified email is allowed.
 
-- [ ] Implement
-- [ ] Test
-- [ ] Review
-- [ ] Complete
+- [x] Implement
+- [x] Test
+- [x] Review
+- [x] Complete
 
 ### TASK-010: Teacher sign-in, create-account, and app shell (web)
 

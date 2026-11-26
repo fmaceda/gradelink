@@ -10,7 +10,7 @@ pull the next task into "Current Task."
 
 ## Current Status
 
-TASK-007 passed validation with notes on 2026-11-26. It's committed on branch `feat/core-schema` (a `chore:` squash, then the `feat:` schema), not yet pushed or merged. The migrations are squashed into one auth baseline (`0000`), and `0001` adds the six app tables. All 142 API tests, 118 shared tests, lint, typecheck and build pass with local Postgres running. No feature screens or routes yet; `/` is a temporary stack-proof page.
+TASK-009 passed validation with notes on 2026-11-26. It's on branch `feat/require-teacher`, not yet committed, pushed or merged. `/api/teacher/*` now requires a session, and an empty teacher router sits behind it. All 178 API tests, 118 shared tests, lint, typecheck and build pass with local Postgres running. No feature screens or real teacher routes yet; `/` is a temporary stack-proof page. The two follow-ups were fixed after validation: `findOwned` gives the shared 404 for a non-uuid id, and `expectNotFoundForOtherTeacher` needs `readOwned` for POST, PUT and PATCH cases.
 
 ## Completed
 
@@ -23,12 +23,18 @@ TASK-007 passed validation with notes on 2026-11-26. It's committed on branch `f
 - TASK-006 — CI, secret scanning, and dependency audit
 - TASK-008 — Shared Zod schemas for multiple choice and true/false
 - TASK-007 — Core database schema and first migration
+- TASK-009 — requireTeacher, teacher-scoping helpers, and the two-teacher test harness
 
 ## Current Task
 
-TASK-009 — requireTeacher, teacher-scoping helpers, and the two-teacher test harness. Not started.
+TASK-010 — Teacher sign-in, create-account, and app shell (web). Not started.
 
 ## Known Issues
+
+- [minor] TASK-009: `requireTeacher` forwards Better Auth's `Set-Cookie` (`returnHeaders: true`, `require-teacher.ts:37-52`) for session refresh and clear-on-expiry. Criterion 1 didn't ask for this. It's sound and tested. Record it as an accepted change in TASKS.md or DECISIONS.md so the code and the criterion agree. Untested edge case: a lookup that fails after a partial refresh could leave a stale `Set-Cookie` on the 500.
+- [minor] TASK-009: `uniqueIp` in `test/support/teachers.ts:43` restarts at `10.30.0.2` in every test file. That's safe only because Better Auth's rate-limit store is in memory per Vitest worker. Fix: seed the counter per worker (`VITEST_POOL_ID` or `process.pid`), or note the assumption.
+- [nit] Docs gap (TASK-009): BEST_PRACTICES has no rule that route ids are parsed as uuid before a by-id service lookup. It's implied by BP-005; add it next to BP-031.
+- [nit] Docs gap (TASK-009): BP-031 requires a cross-teacher 404 test, but not that the 404 body matches the missing-id body. The harness enforces it; add it to BP-031.
 
 - [minor] TASK-007: `pgErrorCode` in `apps/api/test/schema.test.ts:21` returns `undefined` both on success and for an error with no `code`. So the "accepts the four types", "accepts the three statuses" and "no unique index on positions" tests would pass on a non-Postgres failure. Fix: `await` the success cases directly, and keep `pgErrorCode` only for expected rejections.
 - [minor] TASK-007: the "stores the snapshot question key" test (`schema.test.ts:~344`) only re-asserts the helper's hardcoded `"q1"`, so it can't fail. Criterion 7 is a column-only check until TASK-016 builds snapshots. Drop the test, or have TASK-016 test that the publish service writes the same key in both places.
@@ -96,4 +102,4 @@ TASK-009 — requireTeacher, teacher-scoping helpers, and the two-teacher test h
 
 ## Next Step
 
-Push `feat/core-schema` and merge TASK-007, then `/next-tasks TASK-009` or `/implement-task TASK-009` (stories are already saved). Still open from TASK-006: confirm `Secret scan` fails on a throwaway branch with a fabricated token, and that CI is green on `main`.
+Commit TASK-009 on `feat/require-teacher`, push and merge it. Then `/next-tasks TASK-010`. TASK-010 also owns several TASK-004 and TASK-005 Known Issues: the root `ErrorBoundary`, button sizes and hover colours, the Dialog CSP check, the `name` field at sign-up, and the bundle size. Still open from TASK-006: confirm `Secret scan` fails on a throwaway branch with a fabricated token, and that CI is green on `main`.
