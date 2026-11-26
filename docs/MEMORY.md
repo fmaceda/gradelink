@@ -10,7 +10,7 @@ pull the next task into "Current Task."
 
 ## Current Status
 
-TASK-004 validated (PASS WITH NOTES) and committed on branch `feat/web-stack`; no PR yet. React Router 8, Tailwind 4.3, shadcn/ui and Express serving the SPA are proven, Recharts is proven in a scratch project, and all 60 API tests pass against a local Postgres. The manual proxy sign-in check is still open. No feature screens or routes yet; `/` is a temporary stack-proof page.
+TASK-004 validated (PASS WITH NOTES) and committed on branch `feat/web-stack`; no PR yet. React Router 8, Tailwind 4.3, shadcn/ui and Express serving the SPA are proven, Recharts is proven in a scratch project, and all 60 API tests pass against the Docker Postgres from `compose.yaml`. The manual proxy sign-in check is still open. No feature screens or routes yet; `/` is a temporary stack-proof page.
 
 ## Completed
 
@@ -59,8 +59,8 @@ TASK-005 — API hardening baseline (helmet, rate-limit plumbing, body limit, er
 - [minor] TASK-001: `docs/STACK.md` records the Biome exclusions of `.claude` and Markdown without the reason. Add it, and check that no `.claude` JSON needs formatting.
 - [nit] TASK-001: `biome.json` uses the deprecated `linter.rules.recommended`, with no owner for running `biome migrate`.
 - [nit] TASK-001: `apps/api/test/smoke.test.ts:19` ignores any error from `server.close`.
-- [note] TASK-002: local Postgres is 18.4, CI uses `postgres:17`, and Railway's major version is unconfirmed. Align them once TASK-039 confirms Railway's.
+- [note] TASK-002: local Postgres (now `compose.yaml`) and CI both use `postgres:17`, a floating minor tag. Railway's major version is unconfirmed; align all three once TASK-039 confirms it.
 
 ## Next Step
 
-Open a PR for `feat/web-stack`. Then run `/implement-task TASK-005`; its story and accepted decisions are in `docs/TASKS.md`.
+Open a PR for `feat/web-stack`. Still uncommitted: the `.claude/skills` edits and the `.env.example` change. Then run `/implement-task TASK-005`; its story and accepted decisions are in `docs/TASKS.md`.

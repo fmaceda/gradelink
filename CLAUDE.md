@@ -37,6 +37,7 @@ Current status: @docs/MEMORY.md
 ## Commands
 
 - Install: `npm install` *(ask before running — touches the network)*
+- Local Postgres: `docker compose up -d` (first run pulls the image), then `npm run db:migrate -w @gradelink/api`; stop with `docker compose down`
 - Dev server: `npm run dev:api` and `npm run dev:web` (two terminals; Vite on port 5173 proxies `/api` to Express on `PORT`, default 3000)
 - Add a shadcn/ui component: `npx shadcn@4.23.0 add <name>` from `apps/web` *(network)*, then `npm run lint` so Biome formats it
 - Test: `npm test`
@@ -96,5 +97,5 @@ The everyday loop is `/next-tasks`, then `/implement-task`, then `/validate-task
 - Repo shape: one repo, small npm workspace (`apps/api`, `apps/web`, `packages/shared`), no Turborepo or Nx; one deployable (Express serves the built SPA and `/api`). Branches are `<type>/<short-slug>` off `main`, Conventional Commits (see `docs/RULES.md`).
 - `package-lock.json` is committed; CI installs with `npm ci`.
 - Express serves `apps/web/dist` whenever it exists (SPA fallback for GET/HEAD, JSON 404 for unknown `/api/*`). API tests use `apps/api/test/fixtures/web-dist` instead of the real build.
-- API tests need a running local Postgres (see `docs/STACK.md`).
+- API tests need a running local Postgres: `docker compose up -d` (see `docs/STACK.md`).
 - `apps/web/e2e` and Playwright are present but not wired into CI until TASK-021.
