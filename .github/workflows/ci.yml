@@ -6,6 +6,10 @@ on:
   pull_request:
     branches: [main]
 
+# Read-only: CI only reads the checkout. Secret scanning is in secret-scan.yml.
+permissions:
+  contents: read
+
 jobs:
   check:
     runs-on: ubuntu-latest
@@ -30,13 +34,22 @@ jobs:
       # No proxy in front of CI's test server, so no hop is trusted (TASK-005).
       TRUST_PROXY: "0"
     steps:
+      # Actions are pinned to major tags: both are GitHub-maintained, and the project uses no
+      # automated update tooling (RULES.md), so a major tag still picks up their fixes.
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
           node-version-file: .nvmrc
           cache: npm
-      # Needs a committed package-lock.json (created when TASK-001 runs the first install).
       - run: npm ci
+      # Fails on high or critical. None are deferred today. To defer one, name its advisory ID here
+      # and in docs/MEMORY.md; npm audit has no per-advisory ignore, so that also needs a filter
+      # in place of this plain step. Known moderates (they don't fail the step):
+      # GHSA-67mh-4wv8-2f99 via drizzle-kit and GHSA-g3hv-75wg-m249 via shadcn, both dev-only
+      # (docs/STACK.md). It queries the registry each run, so if it fails on a change that touches no
+      # dependency, a new advisory was published or the registry is down: rerun first, then read
+      # the report.
+      - run: npm audit --audit-level=high
       - run: npm run typecheck
       - run: npm run lint
       - run: npm run db:migrate -w @gradelink/api

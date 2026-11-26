@@ -164,11 +164,12 @@ Add `.github/workflows/ci.yml`: `npm ci`, typecheck, Biome, Vitest, build, with 
 - Drop `--passWithNoTests` from `apps/api/package.json`. Check that `npm test` still works if `apps/web` has no tests, and keep the flag on web only if needed.
 - The workflow sets `permissions: contents: read` and pins actions to major tags or SHAs, with the reason recorded.
 - `postgres:17` stays until TASK-039 confirms Railway's version.
+- Changed 2026-11-25 (owner): CI runs the gitleaks CLI image (v8.30.1, pinned by digest) in its own `secret-scan.yml`, not gitleaks-action. On push and PR events the action scans only that event's commits, and criterion 2 needs the full history on every run. Details are in `docs/STACK.md`.
 
-- [ ] Implement
-- [ ] Test
-- [ ] Review
-- [ ] Complete
+- [x] Implement
+- [x] Test
+- [x] Review
+- [x] Complete
 
 ## Phase 2: Thin end-to-end slice (multiple choice and true/false)
 
