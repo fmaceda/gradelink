@@ -1,0 +1,27 @@
+# gitleaks configuration (TASK-006). CI runs gitleaks 8.30.1 over the full git history with this
+# file: see .github/workflows/secret-scan.yml.
+#
+# CI always reads this file from the default branch, never from the commit it scans, so a PR
+# can't allow-list its own secret. A new entry therefore lands on main in its own PR, before the
+# PR that needs it.
+#
+# Allow-list policy (docs/SECURITY.md, Secrets): name only specific committed placeholder values,
+# one [[allowlists]] entry each, with a comment saying where the value lives and why it's safe.
+# Never allow a whole path, file extension or broad regex.
+#
+# There are no entries today. On 2026-11-25 the default rules found nothing in the full history,
+# so none of the committed placeholders is flagged: .env.example, apps/api/src/env.ts, the CI and
+# compose.yaml throwaway credentials, and the "fabricated-..." test values. A fabricated GitHub
+# token committed on a throwaway branch in a local scratch clone did fail the scan. If a future
+# placeholder is flagged, add an entry like this one. Leave regexTarget unset: the default target
+# is the secret value itself, while "match" includes the key name and quotes for rules such as
+# generic-api-key, so an anchored value would never match (checked 2026-11-25).
+#
+# [[allowlists]]
+# description = "<file>: <why this value is a placeholder and never a real secret>"
+# regexes = ['''^exact-placeholder-value$''']
+
+title = "GradeLink gitleaks config"
+
+[extend]
+useDefault = true
