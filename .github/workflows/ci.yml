@@ -27,6 +27,8 @@ jobs:
       DATABASE_URL: postgres://ci:ci-throwaway@localhost:5432/gradelink_test
       BETTER_AUTH_SECRET: ci-throwaway-secret-not-for-production
       BETTER_AUTH_URL: http://localhost:3000
+      # No proxy in front of CI's test server, so no hop is trusted (TASK-005).
+      TRUST_PROXY: "0"
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4

@@ -301,8 +301,11 @@ describe("Better Auth on Express 5", () => {
       expect(body).not.toContain(hash);
       expect(logs).not.toContain(PASSWORD);
       expect(logs).not.toContain("Failed query");
-      expect(logs).toContain("[auth] error");
-      expect(logs).toContain("57P01");
+      // Thrown auth failures reach the shared error handler (TASK-005): a code-only line, tied
+      // to the auth route by its request id.
+      const requestId = /\[error\] (\S+) unhandled \(57P01\)/.exec(logs)?.[1];
+      expect(requestId).toBeDefined();
+      expect(logs).toContain(`[request] ${requestId} POST /api/auth/*splat 500`);
     });
   });
 

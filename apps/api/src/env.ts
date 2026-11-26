@@ -11,6 +11,13 @@ const envSchema = z
     DATABASE_URL: z.url(),
     BETTER_AUTH_SECRET: z.string().min(1),
     BETTER_AUTH_URL: z.url(),
+    // Proxy hops Express trusts for req.ip and req.protocol. 0 trusts none, so a client can't
+    // spoof X-Forwarded-For when no proxy is in front. TASK-038 sets Railway's value.
+    TRUST_PROXY: z
+      .string()
+      .regex(/^\d{1,2}$/)
+      .transform(Number)
+      .default(0),
   })
   .superRefine((value, ctx) => {
     if (value.NODE_ENV === "production" && PLACEHOLDER_SECRETS.has(value.BETTER_AUTH_SECRET)) {

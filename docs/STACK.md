@@ -50,14 +50,14 @@
 | Testing library | Vitest 5.0.5; Playwright 1.64.1 | Vitest for unit and API tests, including the answer-key allow-list test. Playwright for the teacher-creates, student-submits flow on a mobile viewport. |
 | Linter / formatter | Biome 2.6.4 | One fast tool for lint and format. |
 | Dev runner | tsx 4.23.15 | Runs the TypeScript API in development without a build step. |
-| API hardening | express-rate-limit 8.7.3, helmet 8.3.0 (recorded, not installed; run against Express 5 in TASK-005) | Rate limits and security headers for the public, unauthenticated routes. Accepted by the user during second-wave review. |
+| API hardening | express-rate-limit 8.7.3, helmet 8.3.0 (exact pins in `apps/api`; proven on Express 5.3.0 in TASK-005) | Rate limits and security headers for the public, unauthenticated routes. Accepted by the user during second-wave review. |
 | CI provider | GitHub Actions | Typecheck, Biome, Vitest, build, then Playwright against a Postgres service container. |
 
 ## Notes
 
 - **Verification:** versions listed above were confirmed by the advisor during the Propose phase, except where marked as unconfirmed. This Record phase did not re-check them.
 - **Not confirmed (prove in early setup tasks):**
-  - express-rate-limit and helmet compatibility with Express 5: pending, TASK-005. Registry peers allow it (express-rate-limit: `express >= 4.11`; helmet: none).
+  - express-rate-limit and helmet compatibility with Express 5: proven, TASK-005 (below).
   - Recharts compatibility with React 19.3: proven, TASK-004 (below).
   - shadcn/ui setup with Tailwind 4.3 and React 19.3: proven, TASK-004 (below).
   - React Router 8 API in SPA mode: proven, TASK-004 (below).
@@ -91,8 +91,13 @@
   - **Bundle:** the app shell is 685 kB minified (212 kB gzip), almost all react-dom, react-router and zod. Teacher routes and charts must be lazy-loaded (BP-024).
   - **Recharts 3.11.0** (registry latest; 3.10.1 was recorded earlier): installed with React 19.3.1, react-dom 19.3.1 and react-is 19.3.1 in a scratch Vite project outside the repo. `npm ls` shows one React, no invalid peers. A `BarChart` with three bars, axes, grid and `accessibilityLayer` rendered with no React warnings. Peers: `react`, `react-dom`, `react-is` `^16.8 || ... || ^19.0.0`. Its bundle with React was 627 kB, so it must be lazy-loaded (BP-024).
   - `npm audit` after these installs: 8 moderate, no high or critical. The 4 new ones come through `shadcn` → `ts-morph` → `minimatch` (dev CLI only); the 4 `drizzle-kit` ones are unchanged.
+- **Proven in TASK-005 (2026-11-25, Node 26.13.0, Express 5.3.0):**
+  - `npm install --save-exact helmet@8.3.0 express-rate-limit@8.7.3 -w @gradelink/api` succeeded. `npm ls` shows `express-rate-limit` deduped onto `express@5.3.0` and no invalid peers (express-rate-limit peers `express >= 4.11`; helmet has none). npm reported 4 moderate findings after the install and no high or critical ones. TASK-006 audits them in CI.
+  - helmet: a real request through `createApp()` returns its headers on API responses, Better Auth responses and the SPA fallback (`apps/api/test/hardening.test.ts`). The CSP is listed in full (`useDefaults: false`), because helmet's default `style-src` includes `'unsafe-inline'` and `https:`.
+  - express-rate-limit: `rateLimit` from the named export works as Express 5 middleware. Over-limit requests reach a custom `handler`, which returns the shared 429 body. The factory (`middleware/rate-limit.ts`) is unmounted until TASK-022.
+  - `packages/shared` now uses explicit `.ts` relative imports, and `allowImportingTsExtensions` moved to `tsconfig.base.json`. The API build (`NodeNext`) needs the extensions, and Node 26 can load the package directly. Today the API imports only types from it, so the built `dist` doesn't load it at runtime.
 - **Local Postgres:** `docker compose up -d` starts `postgres:17` from the root `compose.yaml`, the same major as CI, bound to `127.0.0.1:5432` with throwaway credentials and the `gradelink` database already created. Set `DATABASE_URL=postgres://gradelink:gradelink-local-throwaway@localhost:5432/gradelink` in `.env`, then run `npm run db:migrate -w @gradelink/api`. Data persists in the `postgres-data` volume; `docker compose down -v` wipes it. (TASK-002 originally used an installed Windows service, PostgreSQL 18.4; that machine setup is gone.) Railway's major version is unconfirmed.
-- **Environment:** `apps/api/src/env.ts` also requires `NODE_ENV` (`development`, `test`, or `production`; Vitest sets `test` itself) and accepts an optional `PORT` (default 3000). The API's npm scripts load the root `.env` with Node's `--env-file-if-exists`, so no `dotenv` dependency is needed and CI and production use real environment variables.
+- **Environment:** `apps/api/src/env.ts` also requires `NODE_ENV` (`development`, `test`, or `production`; Vitest sets `test` itself) and accepts an optional `PORT` (default 3000) and `TRUST_PROXY` (proxy hops Express trusts, a non-negative integer, default 0; TASK-038 sets Railway's value). The API's npm scripts load the root `.env` with Node's `--env-file-if-exists`, so no `dotenv` dependency is needed and CI and production use real environment variables.
 - **Install notes (2026-11-03):**
   - `npm install` on Node 22.23.2 / npm 10.9.8 crashed with `Cannot read properties of null (reading 'edgesOut')` while resolving Vitest's peers. Cause unverified, not reproduced on Node 26.13.0 / npm 11.20.0. Use Node 26 per `.nvmrc`.
   - npm 11.20.0 warns that esbuild's postinstall scripts were not run. tsx, Vite, and the build still work without them.
