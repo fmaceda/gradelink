@@ -48,6 +48,12 @@ are the work. Fix each one, then repeat steps 7 to 9. Don't re-implement what's
 already working, and don't argue a finding away: if you think one is wrong, tell
 the user and let them decide.
 
+## Continuing from /guide-task
+
+If Current Task in `docs/MEMORY.md` has a guided checklist, the user started this
+task by hand. Keep their code, implement only the unticked steps (including any
+tests they cover), then do steps 7 to 9 and remove the checklist.
+
 ## Rules
 
 - One task at a time.

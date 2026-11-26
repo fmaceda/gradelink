@@ -62,12 +62,15 @@ Current status: @docs/MEMORY.md
 
 ## Project skills (in `.claude/skills/`, invoked as slash commands)
 
-The everyday loop is `/next-tasks`, then `/implement-task`, then `/validate-task`.
+The everyday loop is `/next-tasks`, then `/implement-task` (or `/guide-task` to
+write the code yourself), then `/validate-task`.
 
 - `/next-tasks [N | TASK-ID]` — turn the next unfinished tasks into user
   stories with acceptance criteria, derived from the docs.
 - `/implement-task [TASK-ID]` — build one task with its tests, or fix what a
   failed validation found.
+- `/guide-task [TASK-ID]` — write one task yourself: Claude breaks it into small
+  steps, reviews each one, and gives hints, but never edits the code.
 - `/validate-task [TASK-ID]` — verify a task's work: acceptance criteria,
   tests/lint, and a code review against `docs/BEST_PRACTICES.md`.
 - `/ask-stakeholder <question>` — ask the Product Owner a domain question

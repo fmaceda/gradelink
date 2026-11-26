@@ -54,7 +54,7 @@ If the argument is `check`, go to **Readiness check** below; otherwise plan.
      `Scheduled (<version>)`.
    - In `docs/MEMORY.md`, set Next Step to the first task of the release.
 6. **Summarize** what was written and suggest `/next-tasks` to turn the first
-   tasks into stories, then `/implement-task` to build them.
+   tasks into stories, then `/implement-task` or `/guide-task` to build them.
 
 ## Readiness check (`/plan-release check`)
 

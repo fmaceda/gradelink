@@ -34,7 +34,7 @@ Have QA write tests. Arguments: `$ARGUMENTS`
    add each as a one-line item under **Known Issues** in `docs/MEMORY.md`,
    starting with its severity and task ID if there is one (test name, expected
    vs actual, location). Don't fix production code here; suggest
-   `/implement-task` for the current task, or `/plan-release` for a defect in
+   `/implement-task` or `/guide-task` for the current task, or `/plan-release` for a defect in
    shipped work. Don't tick any `TASKS.md` boxes.
 
 ## Rules
