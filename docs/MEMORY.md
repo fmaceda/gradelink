@@ -10,7 +10,7 @@ pull the next task into "Current Task."
 
 ## Current Status
 
-TASK-006 passed validation with notes on 2026-11-25, after two rounds of fixes. The work is committed on branch `chore/secret-scan-audit`, not yet pushed, so neither workflow has run on GitHub. `ci.yml` has `permissions: contents: read` and fails on high or critical `npm audit` findings. `secret-scan.yml` runs gitleaks 8.30.1 (CLI image, pinned by digest) over the full history on every push and PR. Its config comes from the default branch, and a guard fails the step if the clone is shallow. `.gitleaks.toml` uses the default rules with no allow-list entries. All 124 API tests, lint, typecheck and build pass locally. No feature screens or routes yet; `/` is a temporary stack-proof page.
+TASK-008 passed validation with notes on 2026-11-26. `packages/shared` has `common/`, `teacher/` and `student/` schemas plus the score formatter. All 127 API tests, 118 shared tests, lint, typecheck and build pass with local Postgres running. No feature screens or routes yet; `/` is a temporary stack-proof page.
 
 ## Completed
 
@@ -21,27 +21,39 @@ TASK-006 passed validation with notes on 2026-11-25, after two rounds of fixes. 
 - TASK-004 — Prove the web stack (React Router 8, Tailwind 4.3, shadcn/ui, Recharts) and Express serving the SPA
 - TASK-005 — API hardening baseline (helmet, rate-limit plumbing, body limit, error handler)
 - TASK-006 — CI, secret scanning, and dependency audit
+- TASK-008 — Shared Zod schemas for multiple choice and true/false
 
 ## Current Task
 
-TASK-007 — Core database schema and first migration
+TASK-007 — Core database schema and first migration (runs after TASK-008, per the Order note in TASKS.md). Stories are saved; not started.
 
 ## Known Issues
 
-- [minor] TASK-006: unverified on GitHub, so criteria 1 (with the new steps), 2 (the throwaway-branch failure) and 4 (green on `main`) are only shown locally. The work isn't pushed. Need one green run of both workflows and one red `Secret scan` run on a throwaway branch with a fabricated token.
-- [minor] TASK-006: `actions/checkout@v4` and `actions/setup-node@v4` run on Node 20. gitleaks-action's README says GitHub stopped Node 20 actions on 2026-09-16. PR #7's CI still passed, so it's unconfirmed whether the v4 tags are affected. If the runner warns or fails, bumping to the Node 24 majors is a deliberate major bump (RULES.md), not a side effect.
+- [minor] TASK-008: single-line fields (option text, title, student name) reject only `\p{Cc}` in `packages/shared/src/common/text.ts:10`. U+2028/U+2029 line separators, bidi overrides such as U+202E and zero-width characters (`\p{Cf}`) still pass, so two options that differ only by a zero-width space get past the repeated-text check. Fix: also reject `\p{Zl}`, `\p{Zp}` and `\p{Cf}` in single-line fields, and consider NFC before the repeat check. Add table tests.
+- [minor] TASK-008: `@gradelink/shared` has only a `"."` export, so a student page imports through an index that re-exports `teacher/` (answer-key schemas included). The import-guard test only covers `student/` source, not consumers. TASK-010/TASK-021 should add subpath exports (`./student`, `./teacher`, `./common`) or record that tree-shaking is relied on. Docs gap: no BP covers this.
+- [minor] TASK-008: `docs/TEST_PLAN.md:302` still says the docs fix no prompt and option caps. The caps table in the question-bank section now fixes them. Drop that clause.
+- [nit] TASK-008: `choiceResponseSchema` (`student/submit.ts:8`) allows repeated ids like `["a","a"]`. Add a uniqueness refine there, or add it to TASK-019's criteria, so partial credit never counts an id twice.
+- [nit] TASK-008: `multipleChoiceShape`, `trueFalseShape` and `checkStoredChoice` are exported from the package index. Stop exporting them if TASK-007 doesn't need them. `IssueSink` in `teacher/question.ts:24` could be Zod's `RefinementCtx`.
+- [nit] TASK-008: prompts reject `\r`, so an API client sending CRLF gets a 400 (browsers send `\n`). Normalise CRLF or note it in the TEST_PLAN caps table.
+- [nit] TASK-008: `submitAttemptResultSchema` doesn't require `score <= maxScore`. Teacher response schemas are strict too, so adding a server field breaks a client that hasn't reloaded. Strict is deliberate for students; record the choice for teacher responses.
+- [note] TASK-008: points are capped at 1000. No doc sets an upper bound; the owner can change `POINTS_MAX` in `teacher/question.ts`.
+- [note] TASK-008: the shared `test` script and `tsconfig.test.json` rely on vitest and `@types/node` being hoisted from `apps/api`, the same as the TASK-002 `db:*` script nit.
+- [minor] TASK-008: the one shared import on the stack-proof page grew the SPA bundle from 685 kB to 717 kB minified (221 kB gzip), because the barrel pulls in every schema and Zod schemas don't tree-shake well. Part of the TASK-004 bundle issue: TASK-010/TASK-021 should check what the student route pulls in.
+
+- [minor] TASK-006: the owner says both workflows passed every step on the pushed `chore/secret-scan-audit` branch, which covers criterion 1. Still open: criterion 2 needs a red `Secret scan` run on a throwaway branch with a fabricated token (delete the branch afterwards), and criterion 4 needs a green run on `main` after the merge.
+- [minor] TASK-006: `actions/checkout@v4` and `actions/setup-node@v4` run on Node 20. gitleaks-action's README says GitHub stopped Node 20 actions on 2026-09-16. The `chore/secret-scan-audit` run passed, so the v4 tags aren't failing. Whether the runner logs a deprecation warning hasn't been checked. If the runner warns or fails, bumping to the Node 24 majors is a deliberate major bump (RULES.md), not a side effect.
 - [nit] TASK-006: a high or critical advisory can't be deferred by ID with plain `npm audit`, which has no per-advisory ignore. The first deferral needs a small filter step in place of `npm audit --audit-level=high`. The `ci.yml` comment says so.
 
 - [minor] TASK-005: criterion 9 can't be verified by Claude. The owner says `TRUST_PROXY=0` is in their env files, and `git status` shows `.env.example` modified, but Claude's permission settings block reading `.env*` files. The owner should check the line is in `.env.example` before committing.
 - [minor] TASK-005: `fromClientError` in `apps/api/src/middleware/error-handler.ts:44` turns every 4xx into 400 `VALIDATION_ERROR`. An error that carries 404, 413, 415 or 429 from a source other than body-parser loses its real status and code (BP-045). No such source exists today. Fix: keep 404/413/415/429 with their matching code and fixed text, and use 400 only for the rest. TASK-037 at the latest, when it re-checks every route's errors.
 - [nit] TASK-005: `fieldPath` in `apps/api/src/middleware/validate.ts:46` echoes every numeric path segment, so the numeric keys of a `z.record(z.number(), ...)` would show up in `fields`. Fix: echo numbers only under a `ZodArray` or `ZodTuple`, otherwise write `*`.
-- [nit] TASK-005: `unwrap` in `validate.ts:22` doesn't follow unions, discriminated unions, `ZodLazy`, `ZodCatch` or tuples, so errors inside them report `body.*` instead of the field. That's safe but vague. Add a comment saying it's intentional, or extend the walk when the first union request schema arrives (question types, TASK-008).
+- [nit] TASK-005: `unwrap` in `validate.ts:22` doesn't follow unions, discriminated unions, `ZodLazy`, `ZodCatch` or tuples, so errors inside them report `body.*` instead of the field. That's safe but vague. TASK-011 owns extending the walk (accepted 2026-11-25), since it's the first route that parses a union body. `hardening.test.ts` now pins today's `body.*` output for a union body (TASK-008), so TASK-011 updates that test.
 - [nit] TASK-005: `error-handler.ts:75` calls `res.end()` after a mid-stream failure, so the client sees the truncated chunked body as complete. `res.destroy()` would signal the failure. Criterion 6 says "ends", so the owner decides.
 - [note] TASK-005: the owner added a root `.gitattributes` (`* text=auto eol=lf`) on `feat/api-hardening` to fix local CRLF lint failures. It isn't TASK-005 work, so give it its own `chore:` commit. On 2026-11-25 Claude deleted the 19 affected files, which had no local changes, and restored them from git so they're LF on disk, and `npm run lint` now passes. Other existing clones need a fresh checkout to pick up LF (`git rm --cached -r . && git reset --hard`, only with a clean tree).
 - [minor] TASK-005: the CSP ships with strict `style-src 'self'`, and the Radix check is unverified because no browser was available. The Dialog and Sheet scroll lock injects a `<style>` element, which this policy blocks. TASK-010 must open a Dialog in the built SPA served by Express and record the result in `docs/SECURITY.md`. See the Input Validation section there.
 - [note] TASK-005: `middleware/request-log.ts` captures the route pattern by putting an accessor on `req.route`. Express resets `req.baseUrl` before an error reaches the last handler, so reading the pattern at the end would lose the mount path. This relies on Express assigning `req.route` when a route matches. Tests cover it, so an Express upgrade that breaks it shows up as a failing test.
 - [nit] TASK-005: the JSON-only body check runs before the routers, so a non-JSON body sent to an unknown `/api` path gets 415, not 404.
-- [note] TASK-005: `packages/shared` now uses `.ts` relative imports, and `allowImportingTsExtensions` is in `tsconfig.base.json`, because the API's NodeNext build needs them. TASK-010 is the first web import of shared; check Vite and `tsc` there.
+- [note] TASK-005: `packages/shared` now uses `.ts` relative imports, and `allowImportingTsExtensions` is in `tsconfig.base.json`, because the API's NodeNext build needs them. TASK-008 added one web import (`formatPoints` on the stack-proof page), and Vite and `tsc` resolve it. The full web check stays with TASK-010.
 
 - [minor] TASK-004: criterion 6 is unverified. Nobody has signed in through the Vite proxy yet to confirm the cookie is HttpOnly, SameSite=Lax and not Secure. The Vitest half passes. Sign-up calls the Have I Been Pwned service, so do it by hand or approve the network call. Do it before TASK-010 builds the sign-in screen.
 - [minor] TASK-004: `apps/web/src/router.tsx:22`: the `*` route has no `ErrorBoundary`, and there's no root one, so an error there shows React Router's default screen with the raw message. TASK-010 should put `RouteError` on a pathless root route that wraps every route.
@@ -63,7 +75,7 @@ TASK-007 — Core database schema and first migration
 - [note] TASK-003: API tests write to the database in `.env`. They delete their fabricated accounts, but a crashed run could leave some behind.
 - [minor] TASK-002: `BETTER_AUTH_SECRET` is only checked as non-empty, so a very short secret starts in production. Add a production minimum, or record the gap in `docs/SECURITY.md`.
 - [minor] TASK-002: the placeholder in `apps/api/src/env.ts:4` duplicates `.env.example` with nothing linking them (they match today). Add a test that compares them.
-- [minor] TASK-002: migrations `0000` and `0001` create and drop `stack_proof`, so every deploy replays them. Squash them before any shared database exists, or note them as intentional history.
+- [minor] TASK-002: migrations `0000` and `0001` create and drop `stack_proof`, so every deploy replays them. TASK-007 squashes them, criterion 1 (accepted 2026-11-25). No shared database has applied them.
 - [nit] TASK-002: `apps/api/test/db.test.ts:17` only restates the pool constant.
 - [nit] TASK-002: the `test` and `db:*` scripts in `apps/api/package.json` use direct paths into the root `node_modules`, which depend on workspace hoisting.
 - [minor] TASK-001: `docs/STACK.md` records the Biome exclusions of `.claude` and Markdown without the reason. Add it, and check that no `.claude` JSON needs formatting.
@@ -73,4 +85,4 @@ TASK-007 — Core database schema and first migration
 
 ## Next Step
 
-Push `chore/secret-scan-audit`, open a PR, confirm both workflows go green on GitHub, and confirm `Secret scan` fails on a throwaway branch with a fabricated token (then delete it). Then `/next-tasks TASK-007`.
+`/implement-task TASK-007`. Its JSONB types come from `choiceOptionsSchema`, `choiceAnswerKeySchema`, `snapshotContentSchema` and `choiceResponseSchema`. Then TASK-009. Still open from TASK-006: confirm `Secret scan` fails on a throwaway branch with a fabricated token, and that CI is green on `main`.
