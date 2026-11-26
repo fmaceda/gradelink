@@ -162,6 +162,22 @@ describe("API hardening baseline", () => {
       expect(response.headers.get("x-content-type-options")).toBe("nosniff");
     });
 
+    // TASK-010 CSP check: Radix's scroll lock injects a <style> element, allowed by nonce only.
+    it("allows only nonce-carrying <style> elements, with a fresh nonce per response", async () => {
+      const first = await fetch(`${baseUrl}/t/${FAKE_TOKEN}`);
+      const second = await fetch(`${baseUrl}/api/no-such-route`);
+
+      const nonceOf = (response: Response) =>
+        cspDirective(response, "style-src-elem")?.match(
+          /^style-src-elem 'self' 'nonce-([A-Za-z0-9+/]{22}==)'$/,
+        )?.[1];
+      const firstNonce = nonceOf(first);
+      expect(firstNonce).toBeDefined();
+      expect(nonceOf(second)).toBeDefined();
+      expect(nonceOf(second)).not.toBe(firstNonce);
+      expect(cspDirective(first, "style-src-attr")).toBeUndefined();
+    });
+
     it("sets no CORS headers, even for a foreign Origin", async () => {
       const response = await fetch(`${baseUrl}/api/no-such-route`, {
         headers: { origin: "https://evil.example" },

@@ -58,6 +58,25 @@ describe("Express serving the API and the SPA", () => {
       },
     );
 
+    it("puts the response's own CSP nonce into index.html, never the placeholder", async () => {
+      const responses = await Promise.all([fetch(`${baseUrl}/`), fetch(`${baseUrl}/tests`)]);
+      const nonces: string[] = [];
+      for (const response of responses) {
+        const html = await response.text();
+        const inPage = html.match(/<meta name="csp-nonce" content="([^"]+)"/)?.[1];
+        const inHeader = response.headers
+          .get("content-security-policy")
+          ?.match(/style-src-elem 'self' 'nonce-([^']+)'/)?.[1];
+
+        expect(html).not.toContain("__CSP_NONCE__");
+        expect(inPage).toBeDefined();
+        expect(inPage).toBe(inHeader);
+        expect(response.headers.get("cache-control")).toBe("no-cache");
+        nonces.push(inPage ?? "");
+      }
+      expect(nonces[0]).not.toBe(nonces[1]);
+    });
+
     it("answers HEAD on a client path with index.html's headers", async () => {
       const response = await fetch(`${baseUrl}/t/fabricated-share-token`, { method: "HEAD" });
 

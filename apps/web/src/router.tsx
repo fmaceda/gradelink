@@ -11,7 +11,10 @@ import {
 
 // Lazy screens. Each resolves to the module's component; React Router loads it on first use.
 const loadSignIn = async () => (await import("./routes/auth/sign-in")).SignIn;
+const loadSignInAction = async () => (await import("./routes/auth/sign-in")).signInAction;
 const loadCreateAccount = async () => (await import("./routes/auth/create-account")).CreateAccount;
+const loadCreateAccountAction = async () =>
+  (await import("./routes/auth/create-account")).createAccountAction;
 const loadTeacherLayout = async () => (await import("./routes/teacher/layout")).TeacherLayout;
 const loadQuestions = async () => (await import("./routes/teacher/questions")).QuestionsPage;
 const loadTests = async () => (await import("./routes/teacher/tests")).TestsPage;
@@ -32,13 +35,13 @@ export function createRoutes(): RouteObject[] {
           path: "sign-in",
           loader: signedOutOnlyLoader,
           HydrateFallback: PageLoading,
-          lazy: { Component: loadSignIn },
+          lazy: { Component: loadSignIn, action: loadSignInAction },
         },
         {
           path: "create-account",
           loader: signedOutOnlyLoader,
           HydrateFallback: PageLoading,
-          lazy: { Component: loadCreateAccount },
+          lazy: { Component: loadCreateAccount, action: loadCreateAccountAction },
         },
         // Action only; a GET (typed URL, reload) goes home instead of rendering nothing.
         { path: "sign-out", action: signOutAction, loader: () => redirect("/") },
