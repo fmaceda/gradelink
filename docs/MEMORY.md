@@ -10,7 +10,7 @@ pull the next task into "Current Task."
 
 ## Current Status
 
-TASK-008 passed validation with notes on 2026-11-26. `packages/shared` has `common/`, `teacher/` and `student/` schemas plus the score formatter. All 127 API tests, 118 shared tests, lint, typecheck and build pass with local Postgres running. No feature screens or routes yet; `/` is a temporary stack-proof page.
+TASK-007 passed validation with notes on 2026-11-26. It's committed on branch `feat/core-schema` (a `chore:` squash, then the `feat:` schema), not yet pushed or merged. The migrations are squashed into one auth baseline (`0000`), and `0001` adds the six app tables. All 142 API tests, 118 shared tests, lint, typecheck and build pass with local Postgres running. No feature screens or routes yet; `/` is a temporary stack-proof page.
 
 ## Completed
 
@@ -22,13 +22,25 @@ TASK-008 passed validation with notes on 2026-11-26. `packages/shared` has `comm
 - TASK-005 — API hardening baseline (helmet, rate-limit plumbing, body limit, error handler)
 - TASK-006 — CI, secret scanning, and dependency audit
 - TASK-008 — Shared Zod schemas for multiple choice and true/false
+- TASK-007 — Core database schema and first migration
 
 ## Current Task
 
-TASK-007 — Core database schema and first migration (runs after TASK-008, per the Order note in TASKS.md). Stories are saved; not started.
+TASK-009 — requireTeacher, teacher-scoping helpers, and the two-teacher test harness. Not started.
 
 ## Known Issues
 
+- [minor] TASK-007: `pgErrorCode` in `apps/api/test/schema.test.ts:21` returns `undefined` both on success and for an error with no `code`. So the "accepts the four types", "accepts the three statuses" and "no unique index on positions" tests would pass on a non-Postgres failure. Fix: `await` the success cases directly, and keep `pgErrorCode` only for expected rejections.
+- [minor] TASK-007: the "stores the snapshot question key" test (`schema.test.ts:~344`) only re-asserts the helper's hardcoded `"q1"`, so it can't fail. Criterion 7 is a column-only check until TASK-016 builds snapshots. Drop the test, or have TASK-016 test that the publish service writes the same key in both places.
+- [minor] TASK-007: `updated_at` on `questions` and `tests` (`apps/api/src/db/schema.ts:~106`) has no `.$onUpdate(() => new Date())`, so a service that forgets to set it leaves a stale value. Add it to the `updatedAt()` helper (no migration needed, it's client-side) or record that services set it. TASK-011 at the latest.
+- [nit] TASK-007: the numeric round-trip uses `0.5`, which a float column would also store exactly. The column-type test is the real guard. Add `0.1` or `0.3333` to the round-trip.
+- [nit] TASK-007: `test_questions` has no index on `question_id`, and the composite primary key leads with `test_id`. A "which drafts use this question" lookup (archive, TASK-029) scans the table. Add the index then, or record skipping it. Not in BP-017's list.
+- [nit] TASK-007: `attempts.test_id` and `snapshot_id` are independent foreign keys, so a row could name another test's snapshot. TASK-019's submit service must load the snapshot by test. Note the invariant in ARCHITECTURE.md's keys paragraph.
+- [nit] TASK-007: `schema.test.ts:222` checks ids with `/^[0-9a-f-]{36}$/`, which accepts non-uuids. Use a uuid-shaped regex.
+- [note] TASK-007: the squash changed the migration hashes. Any local database other than the one reset on 2026-11-26 must be reset (`docker compose down -v`, or drop the `drizzle` and `public` schemas) before `db:migrate`. See `docs/STACK.md`.
+- [note] TASK-007: `questions.options` and `answer_key` are `NOT NULL` and typed as the choice shapes. TASK-024 widens the `$type`, and decides whether short answer stores `[]` or needs a nullable `options`.
+- [note] TASK-007: `teacher_id` and `test_questions.question_id` use the default `ON DELETE NO ACTION`, since no doc says otherwise. So deleting a user with questions or tests fails, and so does deleting a bank question that's still in a draft. Bank deletes are archives (TASK-029), and the MVP has no account deletion. Recorded in ARCHITECTURE.md.
+- [note] TASK-007: `numeric` columns have no precision or scale. Drizzle reads them as JS numbers (`mode: "number"`), but `sum()` results from raw SQL come back as strings, so analytics (TASK-034) must convert them.
 - [minor] TASK-008: single-line fields (option text, title, student name) reject only `\p{Cc}` in `packages/shared/src/common/text.ts:10`. U+2028/U+2029 line separators, bidi overrides such as U+202E and zero-width characters (`\p{Cf}`) still pass, so two options that differ only by a zero-width space get past the repeated-text check. Fix: also reject `\p{Zl}`, `\p{Zp}` and `\p{Cf}` in single-line fields, and consider NFC before the repeat check. Add table tests.
 - [minor] TASK-008: `@gradelink/shared` has only a `"."` export, so a student page imports through an index that re-exports `teacher/` (answer-key schemas included). The import-guard test only covers `student/` source, not consumers. TASK-010/TASK-021 should add subpath exports (`./student`, `./teacher`, `./common`) or record that tree-shaking is relied on. Docs gap: no BP covers this.
 - [minor] TASK-008: `docs/TEST_PLAN.md:302` still says the docs fix no prompt and option caps. The caps table in the question-bank section now fixes them. Drop that clause.
@@ -75,7 +87,6 @@ TASK-007 — Core database schema and first migration (runs after TASK-008, per 
 - [note] TASK-003: API tests write to the database in `.env`. They delete their fabricated accounts, but a crashed run could leave some behind.
 - [minor] TASK-002: `BETTER_AUTH_SECRET` is only checked as non-empty, so a very short secret starts in production. Add a production minimum, or record the gap in `docs/SECURITY.md`.
 - [minor] TASK-002: the placeholder in `apps/api/src/env.ts:4` duplicates `.env.example` with nothing linking them (they match today). Add a test that compares them.
-- [minor] TASK-002: migrations `0000` and `0001` create and drop `stack_proof`, so every deploy replays them. TASK-007 squashes them, criterion 1 (accepted 2026-11-25). No shared database has applied them.
 - [nit] TASK-002: `apps/api/test/db.test.ts:17` only restates the pool constant.
 - [nit] TASK-002: the `test` and `db:*` scripts in `apps/api/package.json` use direct paths into the root `node_modules`, which depend on workspace hoisting.
 - [minor] TASK-001: `docs/STACK.md` records the Biome exclusions of `.claude` and Markdown without the reason. Add it, and check that no `.claude` JSON needs formatting.
@@ -85,4 +96,4 @@ TASK-007 — Core database schema and first migration (runs after TASK-008, per 
 
 ## Next Step
 
-`/implement-task TASK-007`. Its JSONB types come from `choiceOptionsSchema`, `choiceAnswerKeySchema`, `snapshotContentSchema` and `choiceResponseSchema`. Then TASK-009. Still open from TASK-006: confirm `Secret scan` fails on a throwaway branch with a fabricated token, and that CI is green on `main`.
+Push `feat/core-schema` and merge TASK-007, then `/next-tasks TASK-009` or `/implement-task TASK-009` (stories are already saved). Still open from TASK-006: confirm `Secret scan` fails on a throwaway branch with a fabricated token, and that CI is green on `main`.
