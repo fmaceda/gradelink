@@ -20,23 +20,26 @@ Current status: @docs/MEMORY.md
 | `docs/TASKS.md` | Phased task list; each task: Implement → Test → Review → Complete |
 | `docs/TEST_PLAN.md` | What "working" means per feature |
 | `docs/DECISIONS.md` | Why the stack/architecture is what it is |
+| `docs/STACK.md` | Pinned versions and what each setup task proved |
 | `docs/MEMORY.md` | Living status — current task, known issues, next step |
 
 ## Stack
 
-- Language: TypeScript ~6.0.3 (strict), Node.js 26.x LTS (26.13.0)
+- Language: TypeScript 6.0.3 (strict, exact pin), @types/node 26.6.6, Node.js 26.x LTS (26.13.0)
 - API: Express 5.3.0, Zod 4.6.7, tsx 4.23.15 (dev runner)
-- Client: React 19.3.1, Vite 8.3.5, React Router 8.5.1 (library/data mode), Tailwind CSS 4.3.3 with shadcn/ui
+- Client: React 19.3.1, Vite 8.3.5, React Router 8.5.1 (library/data mode: `createBrowserRouter` from `react-router`, `RouterProvider` from `react-router/dom`), Tailwind CSS 4.3.3 with shadcn/ui (CLI 4.23.0, Radix base, components in `apps/web/src/components/ui/`)
 - Database: PostgreSQL with Drizzle ORM 0.45.4, drizzle-kit 0.31.11, pg 8.23.1
 - Auth: Better Auth 1.7.15 (email and password, teachers only)
 - Tests and lint: Vitest 5.0.5, Playwright 1.64.1, Biome 2.6.4
 - Hosting and CI: Railway Hobby with Railway Postgres; GitHub Actions
-- Not yet pinned (TASK-001 / TASK-004): exact TypeScript patch, @types/node, express-rate-limit, helmet, Recharts
+- Recorded, not installed: express-rate-limit 8.7.3 and helmet 8.3.0 (TASK-005), Recharts 3.11.0 (proven in a scratch project, added only with the charts task)
 
 ## Commands
 
 - Install: `npm install` *(ask before running — touches the network)*
-- Dev server: `npm run dev:api` and `npm run dev:web` (two terminals; Vite proxies `/api` to Express)
+- Local Postgres: `docker compose up -d` (first run pulls the image), then `npm run db:migrate -w @gradelink/api`; stop with `docker compose down`
+- Dev server: `npm run dev:api` and `npm run dev:web` (two terminals; Vite on port 5173 proxies `/api` to Express on `PORT`, default 3000)
+- Add a shadcn/ui component: `npx shadcn@4.23.0 add <name>` from `apps/web` *(network)*, then `npm run lint` so Biome formats it
 - Test: `npm test`
 - Lint: `npm run lint`
 - Typecheck: `npm run typecheck`
@@ -92,5 +95,7 @@ The everyday loop is `/next-tasks`, then `/implement-task`, then `/validate-task
 ## Notes
 
 - Repo shape: one repo, small npm workspace (`apps/api`, `apps/web`, `packages/shared`), no Turborepo or Nx; one deployable (Express serves the built SPA and `/api`). Branches are `<type>/<short-slug>` off `main`, Conventional Commits (see `docs/RULES.md`).
-- The skeleton has no `package-lock.json` and no installed dependencies yet; the first `npm install` (TASK-001) creates the lockfile. Typechecking `apps/api` needs `@types/node`, which TASK-001 pins.
+- `package-lock.json` is committed; CI installs with `npm ci`.
+- Express serves `apps/web/dist` whenever it exists (SPA fallback for GET/HEAD, JSON 404 for unknown `/api/*`). API tests use `apps/api/test/fixtures/web-dist` instead of the real build.
+- API tests need a running local Postgres: `docker compose up -d` (see `docs/STACK.md`).
 - `apps/web/e2e` and Playwright are present but not wired into CI until TASK-021.

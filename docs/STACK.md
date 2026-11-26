@@ -45,8 +45,8 @@
 
 | Category | Choice | Why |
 |---|---|---|
-| UI / CSS library | Tailwind CSS 4.3.3, @tailwindcss/vite 4.3.3, shadcn/ui (Vite path) | Fast, mobile-friendly UI without hand-rolling components. |
-| Charts | Recharts 3.10.1 (recorded, not installed; proven or not in TASK-004) | Class-score and per-question analytics charts. |
+| UI / CSS library | Tailwind CSS 4.3.3, @tailwindcss/vite 4.3.3, shadcn/ui (CLI 4.23.0, Radix base, `nova` preset) with radix-ui 1.8.1, class-variance-authority 0.7.1, cn 0.5.2, lucide-react 1.77.0, tw-animate-css 1.4.0 | Fast, mobile-friendly UI without hand-rolling components. Proven in TASK-004. |
+| Charts | Recharts 3.11.0 (proven in a scratch project in TASK-004; not installed in the repo) | Class-score and per-question analytics charts. |
 | Testing library | Vitest 5.0.5; Playwright 1.64.1 | Vitest for unit and API tests, including the answer-key allow-list test. Playwright for the teacher-creates, student-submits flow on a mobile viewport. |
 | Linter / formatter | Biome 2.6.4 | One fast tool for lint and format. |
 | Dev runner | tsx 4.23.15 | Runs the TypeScript API in development without a build step. |
@@ -58,9 +58,9 @@
 - **Verification:** versions listed above were confirmed by the advisor during the Propose phase, except where marked as unconfirmed. This Record phase did not re-check them.
 - **Not confirmed (prove in early setup tasks):**
   - express-rate-limit and helmet compatibility with Express 5: pending, TASK-005. Registry peers allow it (express-rate-limit: `express >= 4.11`; helmet: none).
-  - Recharts compatibility with React 19.3: pending, TASK-004. Registry peers allow it (`react`, `react-dom` and `react-is` up to `^19.0.0`).
-  - shadcn/ui setup with Tailwind 4.3 and React 19.3: pending, TASK-004.
-  - React Router 8 API in SPA mode: pending, TASK-004.
+  - Recharts compatibility with React 19.3: proven, TASK-004 (below).
+  - shadcn/ui setup with Tailwind 4.3 and React 19.3: proven, TASK-004 (below).
+  - React Router 8 API in SPA mode: proven, TASK-004 (below).
 - **Proven in TASK-001 (2026-11-03, Node 26.13.0, npm 11.20.0):**
   - Registry recheck: every pinned version in this file exists. All are the latest except Tailwind and @tailwindcss/vite (4.3.4 is out) and Vitest (5.1.0 is out). The pins stay; TypeScript's latest is 7.0.2, kept at 6.0.3 as decided above.
   - `@types/node` has no 26.13.x release, so it pins the highest 26.x, 26.6.6. `npm ls` shows one version of it and of TypeScript.
@@ -81,14 +81,24 @@
   - Under `NODE_ENV=test`, Better Auth turns its origin check off by default, so `auth.ts` sets `disableOriginCheck: false`.
   - Better Auth trusts `x-forwarded-for` only when it holds one address, unless `advanced.ipAddress.trustedProxies` is set. Otherwise all clients share one rate-limit bucket.
   - Tests run against the database in `DATABASE_URL`, so CI runs `db:migrate` first. They use fabricated `@auth-test.gradelink.example` accounts and delete them afterward.
-- **Local Postgres:** an installed Windows service, not a container. Start it with `Start-Service postgresql-x64-18`, as an administrator if needed. The database named in `.env` must exist before migrating (`CREATE DATABASE gradelink`). CI uses `postgres:17`, and Railway's major version is unconfirmed.
+- **Proven in TASK-004 (2026-11-21, Node 26.13.0):**
+  - **React Router 8.5.1, library/data mode:** `createBrowserRouter` comes from `react-router` and the DOM `RouterProvider` from `react-router/dom` (the root export has one too). Route objects take `Component`, `loader`, `action`, `HydrateFallback` and `ErrorBoundary`; `useLoaderData<typeof loader>()` and `useActionData<typeof action>()` infer their types with no generated types. Peers: `react`/`react-dom` `>=19.2.7`. With a `HydrateFallback` on the loader route, the browser console shows no warnings. A `path: "*"` route renders a page for unknown client paths.
+  - **Tailwind 4.3:** `@tailwindcss/vite`, `@import "tailwindcss"` and an `@theme inline` block mapping the DESIGN.md palette (as shadcn CSS variables on `:root`) is enough. No `tailwind.config.js` or PostCSS config. The built CSS holds `--primary:#4f46e5`, and the page renders it as `rgb(79, 70, 229)`.
+  - **shadcn/ui:** `npx shadcn@4.23.0 init --base radix --preset nova --no-monorepo --no-rtl` works non-interactively in `apps/web`, and it accepts the `@/*` alias from tsconfig `paths` with no `baseUrl`. `add button dialog sheet` generated the components. Version 4.23.0 differs from older guides: components import `cn` from the `cn` package (shadcn's compiled replacement for clsx + tailwind-merge, no dependencies or install scripts) and `@import "shadcn/tailwind.css"` supplies the `data-open`/`data-closed` variants, so `shadcn` stays as a devDependency. The `nova` preset added the Geist web font; it was removed for the DESIGN.md system font stack. The CLI wrote caret ranges; they were pinned exactly. Biome formats the generated files (its CSS parser needs `tailwindDirectives: true`). Peers: `radix-ui` and `lucide-react` accept React 19.
+  - **Browser checks** (Edge via Playwright's `msedge` channel, 360 px viewport), against `npm run dev:web` + `dev:api`, and again against the built SPA served by the built API: the loader reaches `/api/auth/get-session` through `lib/api.ts`; the action validates and saves; Dialog and Sheet open with focus inside, close with Escape, and Dialog restores focus; an unknown client path renders "Page not found"; no horizontal scroll; no console errors or warnings except the check's own deliberate `/api` 404.
+  - **Vite proxy:** reads `PORT` from the root `.env` with `loadEnv` (fallback 3000, a BP-044 exception) and uses `strictPort` on 5173. A request through it reaches the API's JSON 404. Sign-in through the proxy (TASK-004 criterion 6) was **not** checked: no local Postgres was available on this machine. The Vitest case for the development origin is written but also needs the database.
+  - **Express serving:** proven by `apps/api/test/app.test.ts` against a fixture build, and by hand against the real build (`/`, `/t/<token>`, HEAD, missing `/assets/*` → 404, unknown `/api/*` → JSON 404).
+  - **Bundle:** the app shell is 685 kB minified (212 kB gzip), almost all react-dom, react-router and zod. Teacher routes and charts must be lazy-loaded (BP-024).
+  - **Recharts 3.11.0** (registry latest; 3.10.1 was recorded earlier): installed with React 19.3.1, react-dom 19.3.1 and react-is 19.3.1 in a scratch Vite project outside the repo. `npm ls` shows one React, no invalid peers. A `BarChart` with three bars, axes, grid and `accessibilityLayer` rendered with no React warnings. Peers: `react`, `react-dom`, `react-is` `^16.8 || ... || ^19.0.0`. Its bundle with React was 627 kB, so it must be lazy-loaded (BP-024).
+  - `npm audit` after these installs: 8 moderate, no high or critical. The 4 new ones come through `shadcn` → `ts-morph` → `minimatch` (dev CLI only); the 4 `drizzle-kit` ones are unchanged.
+- **Local Postgres:** `docker compose up -d` starts `postgres:17` from the root `compose.yaml`, the same major as CI, bound to `127.0.0.1:5432` with throwaway credentials and the `gradelink` database already created. Set `DATABASE_URL=postgres://gradelink:gradelink-local-throwaway@localhost:5432/gradelink` in `.env`, then run `npm run db:migrate -w @gradelink/api`. Data persists in the `postgres-data` volume; `docker compose down -v` wipes it. (TASK-002 originally used an installed Windows service, PostgreSQL 18.4; that machine setup is gone.) Railway's major version is unconfirmed.
 - **Environment:** `apps/api/src/env.ts` also requires `NODE_ENV` (`development`, `test`, or `production`; Vitest sets `test` itself) and accepts an optional `PORT` (default 3000). The API's npm scripts load the root `.env` with Node's `--env-file-if-exists`, so no `dotenv` dependency is needed and CI and production use real environment variables.
 - **Install notes (2026-11-03):**
   - `npm install` on Node 22.23.2 / npm 10.9.8 crashed with `Cannot read properties of null (reading 'edgesOut')` while resolving Vitest's peers. Cause unverified, not reproduced on Node 26.13.0 / npm 11.20.0. Use Node 26 per `.nvmrc`.
   - npm 11.20.0 warns that esbuild's postinstall scripts were not run. tsx, Vite, and the build still work without them.
   - `npm audit`: 4 moderate, no high or critical. All come through `drizzle-kit` (old esbuild, dev server only). The suggested fix downgrades `drizzle-kit` to 0.18.1, so it is not applied.
   - Biome reports `linter.rules.recommended` as deprecated (info only; `biome migrate` replaces it).
-  - Biome skips `docs/`, `.claude/`, and Markdown files.
+  - Biome skips `docs/`, `.claude/`, and Markdown files. Generated shadcn files in `components/ui/` are not skipped (TASK-004 decision).
 - **Railway risks accepted:**
   - Monthly cost.
   - Hobby is described as "for personal projects"; commercial-use terms are unconfirmed.

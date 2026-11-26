@@ -154,10 +154,11 @@ describe("Better Auth on Express 5", () => {
       expect(rows).toHaveLength(1);
     });
 
-    it("leaves other routes working after the JSON middleware", async () => {
-      const response = await fetch(`${baseUrl}/api/hello`);
+    it("leaves the routes after the JSON middleware answering", async () => {
+      const response = await fetch(`${baseUrl}/api/no-such-route`);
 
-      expect(response.status).toBe(200);
+      expect(response.status).toBe(404);
+      expect(response.headers.get("content-type")).toContain("application/json");
     });
   });
 
@@ -424,6 +425,60 @@ describe("Better Auth on Express 5", () => {
 
       expect(response.status).toBe(403);
       expect((await getSession(cookie))?.user.email).toBe(email);
+    });
+
+    // The browser sees Vite's origin in development, because /api reaches Express through the
+    // Vite proxy. The proxy half is a manual check recorded in docs/STACK.md (TASK-004).
+    describe("in development", () => {
+      const VITE_DEV_ORIGIN = "http://localhost:5173";
+      let devServer: Server;
+      let closePool: () => Promise<void>;
+
+      function devSignIn(email: string, origin: string) {
+        return fetch(`${urlOf(devServer)}/api/auth/sign-in/email`, {
+          method: "POST",
+          headers: { "content-type": "application/json", origin, "x-forwarded-for": uniqueIp() },
+          body: JSON.stringify({ email, password: PASSWORD }),
+        });
+      }
+
+      beforeAll(async () => {
+        vi.stubEnv("NODE_ENV", "development");
+        vi.resetModules();
+        const app = await import("../src/app.ts");
+        const client = await import("../src/db/client.ts");
+        closePool = () => client.pool.end();
+        devServer = await listen(app.createApp());
+      });
+
+      afterAll(async () => {
+        await new Promise((resolve) => devServer.close(resolve));
+        await closePool();
+        vi.unstubAllEnvs();
+        vi.resetModules();
+      });
+
+      it("accepts a sign-in from the Vite origin with an HttpOnly, Lax, non-Secure cookie", async () => {
+        const email = uniqueEmail();
+        await signUp(email);
+
+        const response = await devSignIn(email, VITE_DEV_ORIGIN);
+
+        expect(response.status).toBe(200);
+        const attributes = cookieAttributes(sessionCookie(response));
+        expect(attributes).toContain("httponly");
+        expect(attributes).toContain("samesite=lax");
+        expect(attributes).not.toContain("secure");
+      });
+
+      it("still rejects a foreign Origin", async () => {
+        const email = uniqueEmail();
+        await signUp(email);
+
+        const response = await devSignIn(email, "https://evil.example");
+
+        expect(response.status).toBe(403);
+      });
     });
   });
 

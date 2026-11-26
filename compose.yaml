@@ -1,0 +1,33 @@
+# Local development services. Start: `docker compose up -d`. Stop: `docker compose down`.
+# Wipe the data too: `docker compose down -v`.
+#
+# The app itself runs outside Docker (`npm run dev:api` / `npm run dev:web`); this file only
+# provides what it depends on. Point the root .env at it with:
+#   DATABASE_URL=postgres://gradelink:gradelink-local-throwaway@localhost:5432/gradelink
+#
+# The credentials are throwaway values for a database bound to this machine only (RULES.md:
+# never reuse them anywhere real). Railway's database has its own credentials.
+
+services:
+  postgres:
+    # Same major as CI (.github/workflows/ci.yml), so local test runs match CI.
+    image: postgres:17
+    environment:
+      POSTGRES_USER: gradelink
+      POSTGRES_PASSWORD: gradelink-local-throwaway
+      POSTGRES_DB: gradelink
+    ports:
+      # Loopback only, so the database isn't reachable from the network. Set POSTGRES_PORT to
+      # use another host port if 5432 is taken (and change DATABASE_URL to match).
+      - "127.0.0.1:${POSTGRES_PORT:-5432}:5432"
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U gradelink -d gradelink"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+    restart: unless-stopped
+
+volumes:
+  postgres-data:
