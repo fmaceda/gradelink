@@ -205,10 +205,10 @@ Drizzle tables for `questions`, `tests`, `test_questions`, `test_snapshots`, `at
 
 **Decisions (accepted 2026-11-25, from the Product Owner's suggestions):** uuid primary keys. `text` plus CHECK rather than `pgEnum`, because it's easier to change later. Squash before any shared database exists.
 
-- [ ] Implement
-- [ ] Test
-- [ ] Review
-- [ ] Complete
+- [x] Implement
+- [x] Test
+- [x] Review
+- [x] Complete
 
 ### TASK-008: Shared Zod schemas for multiple choice and true/false
 

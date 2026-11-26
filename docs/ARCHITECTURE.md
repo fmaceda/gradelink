@@ -95,6 +95,8 @@ How it supports each need:
 
 **Deleting a bank question** sets `archived_at` rather than removing the row. Archived questions are hidden from the bank and can't be added to tests, and the publish service rejects a draft that still contains one. Published tests aren't affected, because they use their snapshot.
 
+**Keys, constraints and ordering (TASK-007).** Each app table's primary key is a `uuid` with a database default (`gen_random_uuid()`), except `test_questions`, whose key is (`test_id`, `question_id`), so a question appears in a test at most once. `type` and `status` are `text` with a CHECK constraint listing the allowed values (from the shared enums), not a `pgEnum`, because a CHECK is easier to change later. `test_questions.position` is an integer, and a draft's questions are read in ascending `position`. There's no unique (`test_id`, `position`) index yet. `numeric` columns are unconstrained (no precision or scale), and Drizzle reads them as numbers. `teacher_id` and `test_questions.question_id` use the default `ON DELETE NO ACTION`: bank questions are archived, not deleted, and the MVP has no account deletion.
+
 > **Assumption:** JSONB for type-specific options and published test snapshots is used because it fits this model (one deployable, no extra store, varied question shapes). It was a suggestion in the stack decision, not a confirmed decision; revisit if you prefer fully relational option tables.
 
 Editing a bank question after a test is published does not change that published test or any past result, and a published test can't be re-published or synced (both confirmed in the PRD).
