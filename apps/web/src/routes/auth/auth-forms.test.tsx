@@ -49,7 +49,22 @@ beforeEach(() => {
   vi.mocked(api.signUp).mockReset();
 });
 
+// The form-level error region is always there for screen readers, but empty until an error.
+async function expectNoFormError(regionId: string) {
+  await screen.findByLabelText(/Email/);
+  const region = document.getElementById(regionId);
+  expect(region).not.toBeNull();
+  expect(region?.childElementCount).toBe(0);
+  expect(region?.textContent).toBe("");
+}
+
 describe("sign-in form", () => {
+  it("shows no error box before a submit", async () => {
+    renderAt("/sign-in");
+
+    await expectNoFormError("sign-in-error");
+  });
+
   it("has labelled email and password fields marked Required, and no app navigation", async () => {
     renderAt("/sign-in");
 
@@ -166,6 +181,12 @@ describe("create-account form", () => {
     await fill(/Email/, "ana@school.org");
     await fill(/Password/, PASSPHRASE);
   }
+
+  it("shows no error box before a submit", async () => {
+    renderAt("/create-account");
+
+    await expectNoFormError("create-account-error");
+  });
 
   it("shows the password helper and has no name field", async () => {
     renderAt("/create-account");

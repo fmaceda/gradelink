@@ -61,14 +61,27 @@ export function useFocusFirstInvalid(
 }
 
 // The form-level error. The live region is always rendered so the message is announced when it
-// appears; the form points at it with aria-describedby.
-export function FormError({ id, children }: { id: string; children: ReactNode }) {
+// appears; the form points at it with aria-describedby. The box shows only when there's a message:
+// children (such as a "Sign in instead" link) are extra content after it, and deciding on them
+// would show an empty box, since several children arrive as an always-truthy array.
+export function FormError({
+  id,
+  message,
+  children,
+}: {
+  id: string;
+  message: string | undefined;
+  children?: ReactNode;
+}) {
   return (
     <div id={id} aria-live="polite">
-      {children ? (
+      {message ? (
         <div className="flex items-start gap-2 rounded-md bg-destructive-tint p-3 text-destructive">
           <CircleAlert aria-hidden="true" className="mt-0.5 size-5 shrink-0" />
-          <div>{children}</div>
+          <div>
+            {message}
+            {children}
+          </div>
         </div>
       ) : null}
     </div>

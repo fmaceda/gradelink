@@ -70,7 +70,7 @@ export function SignIn() {
         aria-describedby={actionData?.formError ? FORM_ERROR_ID : undefined}
         className="flex flex-col gap-5"
       >
-        <FormError id={FORM_ERROR_ID}>{actionData?.formError}</FormError>
+        <FormError id={FORM_ERROR_ID} message={actionData?.formError} />
         <FormField
           ref={email}
           name="email"
