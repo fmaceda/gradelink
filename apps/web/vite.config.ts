@@ -1,3 +1,4 @@
+/// <reference types="vitest/config" />
 import { fileURLToPath } from "node:url";
 import tailwindcss from "@tailwindcss/vite";
 import react from "@vitejs/plugin-react";
@@ -23,6 +24,12 @@ export default defineConfig(({ mode }) => {
       port: DEV_PORT,
       strictPort: true,
       proxy: { "/api": `http://localhost:${apiPort}` },
+    },
+    // Component and module tests (Vitest). Playwright's e2e/ folder is separate.
+    test: {
+      environment: "jsdom",
+      include: ["src/**/*.test.{ts,tsx}"],
+      setupFiles: ["./src/test/setup.ts"],
     },
   };
 });

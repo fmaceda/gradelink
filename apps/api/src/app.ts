@@ -1,4 +1,4 @@
-import { existsSync } from "node:fs";
+import { existsSync, readFileSync } from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { toNodeHandler } from "better-auth/node";
@@ -8,7 +8,7 @@ import { env } from "./env.ts";
 import { requireJsonBody } from "./middleware/content-type.ts";
 import { errorHandler, notFound } from "./middleware/error-handler.ts";
 import { requestLog } from "./middleware/request-log.ts";
-import { securityHeaders } from "./middleware/security-headers.ts";
+import { cspNonce, securityHeaders } from "./middleware/security-headers.ts";
 import { createApiRouter } from "./routes/index.ts";
 
 const JSON_BODY_LIMIT = "100kb";
@@ -27,6 +27,10 @@ const handleAuth: RequestHandler = async (req, res) => {
     writeAuthLog("error", `Better Auth answered ${res.statusCode}`);
   }
 };
+
+// apps/web/index.html carries this in a meta tag; each response swaps in its own CSP nonce, which
+// the SPA hands to Radix's scroll lock (apps/web/src/csp-nonce.ts).
+const CSP_NONCE_PLACEHOLDER = "__CSP_NONCE__";
 
 // A missing hashed bundle must fail loudly, not load index.html as JavaScript.
 const assetNotFound: RequestHandler = (_req, res) => {
@@ -68,10 +72,17 @@ export function createApp({
   // Served whenever a build exists, so the API alone still starts in development and in tests.
   const indexHtml = path.join(webDist, "index.html");
   if (existsSync(indexHtml)) {
+    // Read once: the build doesn't change while the server runs.
+    const indexTemplate = readFileSync(indexHtml, "utf8");
     app.use(express.static(webDist, { index: false }));
     app.use("/assets", assetNotFound);
     app.get("/{*splat}", (_req, res) => {
-      res.sendFile(indexHtml);
+      // The nonce is base64, so it can't break out of the attribute. no-cache: every load
+      // revalidates, so a page never pairs one response's nonce with another's header.
+      res
+        .type("html")
+        .set("Cache-Control", "no-cache")
+        .send(indexTemplate.replaceAll(CSP_NONCE_PLACEHOLDER, cspNonce(res)));
     });
   }
 

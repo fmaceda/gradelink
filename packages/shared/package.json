@@ -4,7 +4,10 @@
   "version": "0.0.0",
   "type": "module",
   "exports": {
-    ".": "./src/index.ts"
+    ".": "./src/index.ts",
+    "./common": "./src/common/index.ts",
+    "./student": "./src/student/index.ts",
+    "./teacher": "./src/teacher/index.ts"
   },
   "scripts": {
     "test": "node ../../node_modules/vitest/vitest.mjs run",

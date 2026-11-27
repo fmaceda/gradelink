@@ -282,14 +282,117 @@ Build `requireTeacher` (session via `auth.api.getSession` with `fromNodeHeaders`
 
 Sign-in and create-account pages with button loading state, inline errors focused on the first invalid field, and the generic "Email or password is incorrect" message. Teacher shell: top bar with Questions and Tests links, user menu with sign out, shadcn Sheet menu below `md`, `aria-current` on the current page, signed-out redirect. Registering with an already-used email shows a visible error and creates no second account. Build `lib/api.ts` as the only `fetch` module with relative `/api` paths and schema-parsed responses. Check at 360 px.
 
-- [ ] Implement
-- [ ] Test
-- [ ] Review
-- [ ] Complete
+**Story:** As a teacher, I want to create an account, sign in and out, and move around a Questions/Tests shell that works on my phone, so that my question bank and tests are mine and I can reach them from any device.
+
+**Acceptance criteria:**
+
+1. The sign-in page has email and password, with always-visible labels, 44 px inputs and 16 px text. The button reads "Signing in..." and is disabled while pending (BP-021). Success lands on Questions. The page has no app navigation.
+2. A wrong password and an unknown email show the identical "Email or password is incorrect". A network failure shows a separate inline error, and the button leaves its loading state. Errors have text and an icon, are announced via `aria-live`, and are linked with `aria-describedby`.
+3. The create-account page has email and password only. The password needs at least 15 characters, accepts 64+ with spaces, and has no composition rules. The limits come from `@gradelink/shared`. An invalid field shows an inline error, and focus moves to the first invalid field. The server stays the boundary.
+4. Create-account server errors:
+   - An already-used email shows a visible error and creates no second account.
+   - A breached password, an outage of the breach-check service, and a 429 each show a plain message, and no account is created.
+5. Better Auth's required `name` is derived from the email: the part before `@`, put through the shared person-name schema (1-80 characters after trimming, control characters rejected). There's no name field. `docs/DESIGN.md` Forms & Inputs records this.
+6. The shell:
+   - A top bar with "GradeLink", "Questions" and "Tests" links, and a user menu that shows the teacher's email and "Sign out".
+   - Below `md`, the links move into a shadcn Sheet opened by a 44 px button.
+   - The current link has `aria-current="page"` and a non-colour indicator, and every page has one H1.
+   - Sign out lands on sign-in. If sign-out fails, the teacher stays on the page and sees an `aria-live` error.
+7. Redirects, decided in router loaders (BP-019):
+   - A signed-out visit to a teacher route goes to sign-in.
+   - A signed-in visit to sign-in or create-account goes to Questions.
+   - `/` redirects.
+   - Questions and Tests are stubs that TASK-012 and TASK-014 fill.
+   - The stack-proof page and its temporary schema are deleted.
+   - Returning to the originally requested page after sign-in is out of scope.
+8. `lib/api.ts`:
+   - It stays the only `fetch` module, with relative `/api` paths (BP-020).
+   - Every response is parsed with a shared schema (BP-005): a new session schema in `packages/shared` (user id and email only) and `errorBodySchema` for errors.
+   - A 401 from any teacher API call sends the teacher to sign-in. A "Session expired" message is optional.
+   - No token is read or kept in `localStorage` or `sessionStorage`.
+9. `RouteError` goes on a pathless root route that wraps every route. Unknown paths still show `NotFound`, and a raw error message is never shown.
+10. Buttons in `components/ui/button.tsx`:
+    - Default and icon sizes, and the Dialog/Sheet close buttons, are at least 44 px.
+    - Hover uses `hover:bg-primary-hover` and `hover:bg-secondary-hover`.
+    - The focus ring is 2 px Indigo with an offset.
+11. Bundle:
+    - Teacher routes load lazily (BP-024).
+    - `@gradelink/shared` gets subpath exports (`./common`, `./student`, `./teacher`), and the web imports from the narrowest one. Record this in `docs/ARCHITECTURE.md`.
+    - The entry chunk is smaller than 717 kB, and the before and after sizes go in `docs/STACK.md`.
+    - TASK-021 checks what the student route pulls in.
+12. In the built SPA served by Express with the CSP on, open the Sheet and a Dialog, and record the result in `docs/SECURITY.md`. If a `<style>` element is blocked, fix it with a nonce or a narrow `style-src-elem`, never `unsafe-inline`.
+13. Sign in once through the Vite proxy and confirm the cookie is HttpOnly, SameSite=Lax and not Secure. This closes TASK-004 criterion 6. It's manual or needs an approved network call (Have I Been Pwned). Automated tests mock the breach check.
+14. Checks:
+    - At 360 px there's no horizontal page scroll, and every tap target is at least 44 px.
+    - Playwright (mobile viewport, run locally until TASK-021) covers create account, sign out, sign in, and both redirects.
+    - Vitest covers the error mapping and focus-on-first-invalid-field.
+    - `docs/SECURITY.md` records that sign-up reveals an already-registered email. The sign-up rate limit is the mitigation.
+
+**Decisions (accepted 2026-11-26, from the Product Owner's suggestions):**
+- name derived from the email
+- the enumeration on sign-up accepted
+- land on Questions, with signed-in teachers redirected away from the auth pages
+- no return-to-page
+- the user menu shows the email
+- sign-out failure stays on the page
+- 401 handling owned here
+- subpath exports here, not TASK-021
+
+- [x] Implement
+- [x] Test
+- [x] Review
+- [x] Complete
 
 ### TASK-011: Question bank API for multiple choice and true/false
 
 Service and `/api/teacher/questions` routes: create, list, get, update, scoped by `teacherId` in every where clause. Points default to 1, numeric, positive. A question's type can't change after creation. JSONB `options` and `answer_key` validated per type on read and write. Reject unknown body fields (no client-sent `teacher_id`). Add isolation cases to the two-teacher test for every route.
+
+**Story:** As a teacher, I want to create, list, open and edit my own multiple choice and true/false questions through the API, so that I can build a reusable bank that only I can see or change.
+
+**Acceptance criteria:**
+
+1. The routes are `POST /api/teacher/questions` (201), `GET /`, `GET /:id` and `PUT /:id` (full body). They sit on a static mount behind `requireTeacher` (BP-046). There is no DELETE: archiving is TASK-029.
+2. Validation:
+   - Body, params and query are parsed with shared schemas via `validated()`.
+   - A non-uuid `:id` gets a 400 before any lookup.
+   - Bodies are the strict TASK-008 schemas (BP-006). Unknown keys such as `teacher_id`, `id` or `status` get a 400 that doesn't echo them.
+   - `short_answer` and `multiple_answer` bodies are rejected until TASK-024.
+   - Each cap is tested at its limit and one past it.
+3. `unwrap`/`fieldPath` in `validate.ts` follow unions, discriminated unions (by the discriminator), tuples, `ZodLazy` and `ZodCatch`. An invalid body then reports e.g. `body.options.1.text`, not `body.*`. Keys the client typed stay masked. `hardening.test.ts` is updated to the new paths (accepted 2026-11-25).
+4. Create:
+   - `teacher_id` comes from the session only.
+   - The service generates the option ids.
+   - Points default to 1, are stored as numeric, and 0.5 round-trips exactly.
+   - The response is `teacherQuestionSchema`, parsed from the stored row.
+5. Points of 0, below 0, non-numeric or over 1000 get a 400. A PUT that leaves `points` out stores 1, the create default. TEST_PLAN.md records this.
+6. JSONB `options` and `answer_key` are validated per type with the shared schema on write and on read (BP-016). A stored row that fails is a 500 with a code-only log, and no partial object leaks (BP-043, BP-045). For the list, one bad row fails the whole list. Responses are built from the parsed shape, never a raw row.
+7. The list holds only the signed-in teacher's non-archived questions, newest first by `created_at` with `id` as tiebreak. There is no pagination and no bank size cap. Record that known limit in TEST_PLAN.md. The response uses a shared list schema.
+8. Update:
+   - It replaces the prompt, options, correct answer and points. Option ids are regenerated on each edit.
+   - True/false options stay fixed.
+   - A `type` that differs from the stored one gets a 400 with a `type` field error, and the question is unchanged.
+   - `updated_at` changes and `created_at` doesn't. Choose `.$onUpdate` in the `updatedAt()` helper or the service, and prove it with a test (closes a TASK-007 item).
+9. Every service function takes `teacherId` and uses `findOwned` (BP-031). Another teacher's id, a missing id and an archived id all give the identical 404. ARCHITECTURE.md records that archived questions are 404 on GET/PUT. Responses don't include `archivedAt`.
+10. Add isolation cases to the `routes` block of `teacher-isolation.test.ts` for every route:
+    - GET and PUT (PUT with `readOwned`).
+    - B's list leaves out A's questions.
+    - B's create can't touch A's rows.
+    - Every route gets 401 when signed out.
+11. Handlers only parse, call one service function, and return (BP-037, rule 9). There's no SQL in routes.
+12. Tests cover the TEST_PLAN question-bank API cases:
+    - both types, the points default and 0.5
+    - type change rejected, caps, unknown fields
+    - `<img onerror>` returned as literal text
+    - the 400 `fields` shape with no submitted values echoed
+
+**Decisions (accepted 2026-11-26, from the Product Owner's suggestions):**
+- option ids regenerated on edit
+- newest first, with no pagination or cap
+- archived questions are 404 on GET/PUT now
+- a bad stored row fails the list
+- no `archivedAt` in responses
+- an omitted `points` on PUT stores 1
+- true/false options fixed
 
 - [ ] Implement
 - [ ] Test
@@ -299,6 +402,61 @@ Service and `/api/teacher/questions` routes: create, list, get, update, scoped b
 ### TASK-012: Question bank UI (list and editor)
 
 Bank list (cards on phones, table from `md`) and question editor for multiple choice and true/false with a points input. Loading skeletons, "No questions yet" empty state, error with "Try again", field-level validation, save failure keeping entered data, and the "Discard changes?" confirmation. Prompts and options render as text only.
+
+**Story:** As a teacher, I want to see my question bank and add or edit multiple choice and true/false questions with points, on my phone or laptop, so that I can build a reusable bank without retyping questions for each quiz.
+
+**Acceptance criteria:**
+
+1. The list:
+   - Below `md`, cards show the prompt (clamped to a few lines), the type as text, and the points. The whole card links to the editor with a visible focus state.
+   - From `md`, a table shows the prompt, type and points. It has header cells, right-aligned points and a caption.
+   - No page scroll at 360 px. Table overflow stays inside its container.
+2. List states:
+   - A skeleton from the loader while loading.
+   - "No questions yet" with an "Add question" button when empty. "Add question" is also in the header of a non-empty list.
+   - An error with "Try again" in an `aria-live` region.
+   - The one H1 is "Question bank".
+3. Create:
+   - The type is a radio or segmented choice in the same form, and the options area changes with it.
+   - Multiple choice has a prompt, 2 to 10 options with add and remove buttons, and one correct option chosen by radio.
+   - True/false has a prompt and a "Correct answer" radio pair (True/False) in a `fieldset` with a `legend`.
+   - Points default to 1 and accept a decimal point only (0.5), with helper text. A comma or other text is a field error.
+   - Labels are always visible. Buttons are verbs ("Save question", "Add option"), and "Saving..." blocks a double submit.
+4. Edit:
+   - It opens with a skeleton, shows the type as read-only text, and shows the full prompt.
+   - After saving an edit, the teacher stays on the page with an announced "Saved".
+   - After a create, the teacher returns to the list.
+   - Reloading shows the saved values.
+5. Validation:
+   - Shared-schema messages appear under each field with an icon and `aria-describedby`. Checks run on blur and on submit, not while typing.
+   - Focus moves to the first invalid field on submit.
+   - The checks cover the caps, repeated options, no correct option, and invalid points.
+   - Server 400 `fields` map back to their inputs. Anything that doesn't map shows as a form-level error.
+6. A failed save keeps everything entered and shows a message, and Save is usable again.
+7. "Discard changes?":
+   - Leaving with unsaved changes asks for confirmation, whether by back, a nav link, Cancel or the router blocker. Cancel stays, and confirm leaves.
+   - The dialog traps focus, closes with Escape, and restores focus.
+   - It never shows when nothing changed or after a save.
+8. Prompts and options render as text only (BP-022). `<img src=x onerror=alert(1)>` shows literally in the list and the editor. There's no `dangerouslySetInnerHTML`. Newlines display via `whitespace-pre-wrap`.
+9. API:
+   - Screens use `lib/api.ts` functions (list, get, create, update) through loaders and actions (BP-019). Responses are parsed with the shared schemas.
+   - A 401 sends the teacher to sign-in.
+   - A 404 shows "Question not found" with a link back to the bank.
+10. Tests:
+    - Component tests cover validation, the server field mapping, the discard dialog and the states.
+    - Playwright (mobile viewport, run locally until TASK-021) covers creating an MC question at the default 1 point, a T/F at 2 points, editing and reloading, and the empty state.
+    - Every control works by keyboard, with arrow keys in radio groups.
+    - `docs/DESIGN.md` records the editor and list choices (columns, clamp, type control, after-save behaviour, points format).
+
+**Decisions (accepted 2026-11-26, from the Product Owner's suggestions):**
+- return to the list after create, stay with "Saved" after edit
+- the type as a radio or segmented choice in the form
+- columns prompt, type and points
+- clamped prompts in the list
+- "Add question" in the header
+- true/false as a "Correct answer" radio pair
+- validation on blur and submit
+- decimal point only
 
 - [ ] Implement
 - [ ] Test

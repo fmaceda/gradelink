@@ -10,7 +10,7 @@ pull the next task into "Current Task."
 
 ## Current Status
 
-TASK-009 passed validation with notes on 2026-11-26. It's on branch `feat/require-teacher`, not yet committed, pushed or merged. `/api/teacher/*` now requires a session, and an empty teacher router sits behind it. All 178 API tests, 118 shared tests, lint, typecheck and build pass with local Postgres running. No feature screens or real teacher routes yet; `/` is a temporary stack-proof page. The two follow-ups were fixed after validation: `findOwned` gives the shared 404 for a non-uuid id, and `expectNotFoundForOtherTeacher` needs `readOwned` for POST, PUT and PATCH cases.
+TASK-010 passed validation with notes on 2026-11-26 and is committed on `feat/teacher-shell` (not pushed, no PR yet). TASK-011 is next. All 180 API tests, 53 web tests, 132 shared tests, the 6 e2e tests, lint, typecheck and build pass with local Postgres running.
 
 ## Completed
 
@@ -24,16 +24,27 @@ TASK-009 passed validation with notes on 2026-11-26. It's on branch `feat/requir
 - TASK-008 — Shared Zod schemas for multiple choice and true/false
 - TASK-007 — Core database schema and first migration
 - TASK-009 — requireTeacher, teacher-scoping helpers, and the two-teacher test harness
+- TASK-010 — Teacher sign-in, create-account, and app shell (web)
 
 ## Current Task
 
-TASK-010 — Teacher sign-in, create-account, and app shell (web). Not started.
+TASK-011 — Question bank API for multiple choice and true/false. Stories and decisions are saved in TASKS.md. Not started.
 
 ## Known Issues
 
+- [minor] TASK-010: `express.static` in `apps/api/src/app.ts:77` still serves `/index.html` as a file, with the raw `__CSP_NONCE__` placeholder and no `Cache-Control: no-cache`. A visit to `/index.html` loads the SPA with a nonce that matches nothing, so the scroll lock is blocked again. Not a security hole. Fix: send `/index.html` to the templated handler before the static middleware, and add a test next to the nonce test in `app.test.ts`.
+- [minor] TASK-010: the entry chunk carries the teacher question schemas (confirmed: "Must name one of the question's options." is in `index-*.js`), because `lib/api.ts` imports the whole `@gradelink/shared/teacher` barrel. Fix: move the session and auth schemas to their own subpath (or `common`) so the entry pulls in only those. Check together with TASK-021's student-route bundle check.
+- [minor] TASK-010: `signUpError` in `apps/web/src/routes/auth/create-account.tsx:34` maps only four Better Auth codes. `INVALID_EMAIL` (Better Auth's email check can disagree with `z.email`) falls through to "Something went wrong". The `PASSWORD_TOO_SHORT` and `PASSWORD_TOO_LONG` branches have no test. Fix: map `INVALID_EMAIL` to an email field error, and test the two length codes.
+- [minor] TASK-010: the sign-out error in `apps/web/src/routes/teacher/layout.tsx:132` (`signOut.data?.error`) stays on screen across navigation until the next sign-out attempt. Fix: clear it on navigation or when the menu reopens.
+- [nit] TASK-010: `commonErrorMessage` in `apps/web/src/routes/auth/form.tsx:38` reports every `TypeError` as a network failure, so a programming error would show "We couldn't reach GradeLink". Fix: catch the `TypeError` only around `fetch` in `requestJson` and throw a dedicated `NetworkError`.
+- [nit] TASK-010: `nameFromEmail` in `apps/web/src/lib/api.ts:106` cuts at 80 UTF-16 units, which can split a surrogate pair. Fix: cut with `Array.from(...)`, or check `isWellFormed()` and fall back.
+- [note] TASK-010: the CSP fix relies on `get-nonce` reading the `__webpack_nonce__` global, an internal of Radix's `react-remove-scroll`. Only the e2e test catches a break, and it isn't in CI until TASK-021. Re-run `npm run e2e -w @gradelink/web` after any Radix upgrade.
+- [nit] TASK-010: SECURITY.md Input Validation still opens with "`style-src` may allow `unsafe-inline` only if TASK-005 proves...". Rewrite it to the current state (nonce in `style-src-elem`, never `unsafe-inline`).
+- [nit] Docs gap (TASK-010): BEST_PRACTICES has no rules for CSP changes and nonce handling, for mapping Better Auth error codes to fixed messages, or for e2e tests (no network calls, fabricated accounts only).
 - [minor] TASK-009: `requireTeacher` forwards Better Auth's `Set-Cookie` (`returnHeaders: true`, `require-teacher.ts:37-52`) for session refresh and clear-on-expiry. Criterion 1 didn't ask for this. It's sound and tested. Record it as an accepted change in TASKS.md or DECISIONS.md so the code and the criterion agree. Untested edge case: a lookup that fails after a partial refresh could leave a stale `Set-Cookie` on the 500.
 - [minor] TASK-009: `uniqueIp` in `test/support/teachers.ts:43` restarts at `10.30.0.2` in every test file. That's safe only because Better Auth's rate-limit store is in memory per Vitest worker. Fix: seed the counter per worker (`VITEST_POOL_ID` or `process.pid`), or note the assumption.
 - [nit] Docs gap (TASK-009): BEST_PRACTICES has no rule that route ids are parsed as uuid before a by-id service lookup. It's implied by BP-005; add it next to BP-031.
+- [note] TASK-010: `npm run e2e -w @gradelink/web` signs up real accounts (`*@e2e.gradelink.example`) in the database named in `.env` and never deletes them. TASK-021 runs it in CI against a fresh database; locally, `docker compose down -v` clears them.
 - [nit] Docs gap (TASK-009): BP-031 requires a cross-teacher 404 test, but not that the 404 body matches the missing-id body. The harness enforces it; add it to BP-031.
 
 - [minor] TASK-007: `pgErrorCode` in `apps/api/test/schema.test.ts:21` returns `undefined` both on success and for an error with no `code`. So the "accepts the four types", "accepts the three statuses" and "no unique index on positions" tests would pass on a non-Postgres failure. Fix: `await` the success cases directly, and keep `pgErrorCode` only for expected rejections.
@@ -48,7 +59,6 @@ TASK-010 — Teacher sign-in, create-account, and app shell (web). Not started.
 - [note] TASK-007: `teacher_id` and `test_questions.question_id` use the default `ON DELETE NO ACTION`, since no doc says otherwise. So deleting a user with questions or tests fails, and so does deleting a bank question that's still in a draft. Bank deletes are archives (TASK-029), and the MVP has no account deletion. Recorded in ARCHITECTURE.md.
 - [note] TASK-007: `numeric` columns have no precision or scale. Drizzle reads them as JS numbers (`mode: "number"`), but `sum()` results from raw SQL come back as strings, so analytics (TASK-034) must convert them.
 - [minor] TASK-008: single-line fields (option text, title, student name) reject only `\p{Cc}` in `packages/shared/src/common/text.ts:10`. U+2028/U+2029 line separators, bidi overrides such as U+202E and zero-width characters (`\p{Cf}`) still pass, so two options that differ only by a zero-width space get past the repeated-text check. Fix: also reject `\p{Zl}`, `\p{Zp}` and `\p{Cf}` in single-line fields, and consider NFC before the repeat check. Add table tests.
-- [minor] TASK-008: `@gradelink/shared` has only a `"."` export, so a student page imports through an index that re-exports `teacher/` (answer-key schemas included). The import-guard test only covers `student/` source, not consumers. TASK-010/TASK-021 should add subpath exports (`./student`, `./teacher`, `./common`) or record that tree-shaking is relied on. Docs gap: no BP covers this.
 - [minor] TASK-008: `docs/TEST_PLAN.md:302` still says the docs fix no prompt and option caps. The caps table in the question-bank section now fixes them. Drop that clause.
 - [nit] TASK-008: `choiceResponseSchema` (`student/submit.ts:8`) allows repeated ids like `["a","a"]`. Add a uniqueness refine there, or add it to TASK-019's criteria, so partial credit never counts an id twice.
 - [nit] TASK-008: `multipleChoiceShape`, `trueFalseShape` and `checkStoredChoice` are exported from the package index. Stop exporting them if TASK-007 doesn't need them. `IssueSink` in `teacher/question.ts:24` could be Zod's `RefinementCtx`.
@@ -56,7 +66,6 @@ TASK-010 — Teacher sign-in, create-account, and app shell (web). Not started.
 - [nit] TASK-008: `submitAttemptResultSchema` doesn't require `score <= maxScore`. Teacher response schemas are strict too, so adding a server field breaks a client that hasn't reloaded. Strict is deliberate for students; record the choice for teacher responses.
 - [note] TASK-008: points are capped at 1000. No doc sets an upper bound; the owner can change `POINTS_MAX` in `teacher/question.ts`.
 - [note] TASK-008: the shared `test` script and `tsconfig.test.json` rely on vitest and `@types/node` being hoisted from `apps/api`, the same as the TASK-002 `db:*` script nit.
-- [minor] TASK-008: the one shared import on the stack-proof page grew the SPA bundle from 685 kB to 717 kB minified (221 kB gzip), because the barrel pulls in every schema and Zod schemas don't tree-shake well. Part of the TASK-004 bundle issue: TASK-010/TASK-021 should check what the student route pulls in.
 
 - [minor] TASK-006: the owner says both workflows passed every step on the pushed `chore/secret-scan-audit` branch, which covers criterion 1. Still open: criterion 2 needs a red `Secret scan` run on a throwaway branch with a fabricated token (delete the branch afterwards), and criterion 4 needs a green run on `main` after the merge.
 - [minor] TASK-006: `actions/checkout@v4` and `actions/setup-node@v4` run on Node 20. gitleaks-action's README says GitHub stopped Node 20 actions on 2026-09-16. The `chore/secret-scan-audit` run passed, so the v4 tags aren't failing. Whether the runner logs a deprecation warning hasn't been checked. If the runner warns or fails, bumping to the Node 24 majors is a deliberate major bump (RULES.md), not a side effect.
@@ -68,28 +77,18 @@ TASK-010 — Teacher sign-in, create-account, and app shell (web). Not started.
 - [nit] TASK-005: `unwrap` in `validate.ts:22` doesn't follow unions, discriminated unions, `ZodLazy`, `ZodCatch` or tuples, so errors inside them report `body.*` instead of the field. That's safe but vague. TASK-011 owns extending the walk (accepted 2026-11-25), since it's the first route that parses a union body. `hardening.test.ts` now pins today's `body.*` output for a union body (TASK-008), so TASK-011 updates that test.
 - [nit] TASK-005: `error-handler.ts:75` calls `res.end()` after a mid-stream failure, so the client sees the truncated chunked body as complete. `res.destroy()` would signal the failure. Criterion 6 says "ends", so the owner decides.
 - [note] TASK-005: the owner added a root `.gitattributes` (`* text=auto eol=lf`) on `feat/api-hardening` to fix local CRLF lint failures. It isn't TASK-005 work, so give it its own `chore:` commit. On 2026-11-25 Claude deleted the 19 affected files, which had no local changes, and restored them from git so they're LF on disk, and `npm run lint` now passes. Other existing clones need a fresh checkout to pick up LF (`git rm --cached -r . && git reset --hard`, only with a clean tree).
-- [minor] TASK-005: the CSP ships with strict `style-src 'self'`, and the Radix check is unverified because no browser was available. The Dialog and Sheet scroll lock injects a `<style>` element, which this policy blocks. TASK-010 must open a Dialog in the built SPA served by Express and record the result in `docs/SECURITY.md`. See the Input Validation section there.
 - [note] TASK-005: `middleware/request-log.ts` captures the route pattern by putting an accessor on `req.route`. Express resets `req.baseUrl` before an error reaches the last handler, so reading the pattern at the end would lose the mount path. This relies on Express assigning `req.route` when a route matches. Tests cover it, so an Express upgrade that breaks it shows up as a failing test.
 - [nit] TASK-005: the JSON-only body check runs before the routers, so a non-JSON body sent to an unknown `/api` path gets 415, not 404.
-- [note] TASK-005: `packages/shared` now uses `.ts` relative imports, and `allowImportingTsExtensions` is in `tsconfig.base.json`, because the API's NodeNext build needs them. TASK-008 added one web import (`formatPoints` on the stack-proof page), and Vite and `tsc` resolve it. The full web check stays with TASK-010.
 
-- [minor] TASK-004: criterion 6 is unverified. Nobody has signed in through the Vite proxy yet to confirm the cookie is HttpOnly, SameSite=Lax and not Secure. The Vitest half passes. Sign-up calls the Have I Been Pwned service, so do it by hand or approve the network call. Do it before TASK-010 builds the sign-in screen.
-- [minor] TASK-004: `apps/web/src/router.tsx:22`: the `*` route has no `ErrorBoundary`, and there's no root one, so an error there shows React Router's default screen with the raw message. TASK-010 should put `RouteError` on a pathless root route that wraps every route.
-- [nit] TASK-004: `--primary-hover` and `--secondary-hover` in `apps/web/src/styles.css:18` are unused. The generated Button uses `hover:bg-primary/80` and a `color-mix`, so hover doesn't match DESIGN.md. TASK-010 should use `hover:bg-primary-hover` and `hover:bg-secondary-hover` when it sets the button styles.
-- [nit] TASK-004: in `apps/web/src/routes/stack-proof.tsx:65`, the loader's `notes` shadows the module-level `notes` array. The file is temporary and TASK-010 removes it.
 - [nit] TASK-004: the wrong-method test in `apps/api/test/app.test.ts:104` checks "not HTML" but not `application/json`. TASK-037 should assert JSON when it re-checks every route.
 - [note] TASK-004: git reports "dubious ownership" for the repo folder on this machine. Commands used `git -c safe.directory=...`. The owner can run `git config --global --add safe.directory D:/Development/portfolio-projects/gradelink` to fix it permanently.
-- [minor] TASK-004: the SPA bundle is 685 kB minified (212 kB gzip), mostly react-dom, react-router and zod, before any screen exists. TASK-010 and TASK-021 must lazy-load teacher routes (BP-024) so `/t/<token>` stays small. Consider `zod/mini` for the student bundle.
-- [minor] TASK-004: the shadcn `nova` buttons default to `h-8` (32 px), and the Dialog and Sheet close buttons are `icon-sm` (about 28 px, `components/ui/dialog.tsx:61`). Both are below DESIGN.md's 44 px touch target. The proof page passes `h-11` only to its own buttons. TASK-010 should set the app's button and icon-button sizes in `components/ui/button.tsx`.
-- [note] TASK-004: `/` is a temporary stack-proof page (`apps/web/src/routes/stack-proof.tsx`) with a temporary local schema in `lib/api.ts`. TASK-010 replaces both with the app shell and a schema from `@gradelink/shared`.
+- [minor] TASK-004/TASK-008: the entry chunk is 667 kB minified (206 kB gzip) after TASK-010 made the teacher and auth routes lazy. It was 717 kB. What remains is react-dom, react-router and zod. TASK-021 must check what `/t/<token>` pulls in, and consider `zod/mini` for the student schemas.
 - [note] TASK-006: `npm audit` still reports 8 moderate findings, all dev-only, and no high or critical: GHSA-67mh-4wv8-2f99 (esbuild via `drizzle-kit`) and GHSA-g3hv-75wg-m249 (minimatch via `shadcn`). CI fails only on high or critical. Nothing is deferred. Both IDs are named in `ci.yml`.
 
 - [note] TASK-003: `NODE_ENV` is required, so Railway must set `NODE_ENV=production`. Local tests now run in development mode because `.env` sets it, while CI runs them in test mode.
 - [minor] TASK-003: the leak test at `apps/api/test/auth.test.ts:274` finds the session `id`, not the `token`, because both are 32 characters and `id` comes first. Its other assertions still catch the leak, but it should check the token itself.
 - [nit] TASK-003: `apps/api/test/db.test.ts:21` skips `mockRestore` if the `not.toThrow` assertion fails. Use `try`/`finally`.
 - [major] TASK-003: behind Railway's proxy, `x-forwarded-for` may hold several addresses, and Better Auth then puts every client in one rate-limit bucket, so one client could lock every teacher out of sign-in. Unverified on Railway. Express `trust proxy` doesn't help: TASK-038 checks this and sets `advanced.ipAddress.trustedProxies`.
-- [minor] TASK-003: sign-up requires `name`, but `docs/DESIGN.md` and the create-account mockup have no such field. TASK-010 must add one or derive it. Check `docs/DESIGN.md` then.
-- [minor] TASK-003: `auth.ts` trusts `http://localhost:5173` in development. TASK-004 pinned Vite to that port (`strictPort`), but sign-in through the proxy is still unchecked. See the TASK-004 Postgres entry above.
 - [note] TASK-003: API tests write to the database in `.env`. They delete their fabricated accounts, but a crashed run could leave some behind.
 - [minor] TASK-002: `BETTER_AUTH_SECRET` is only checked as non-empty, so a very short secret starts in production. Add a production minimum, or record the gap in `docs/SECURITY.md`.
 - [minor] TASK-002: the placeholder in `apps/api/src/env.ts:4` duplicates `.env.example` with nothing linking them (they match today). Add a test that compares them.
@@ -102,4 +101,4 @@ TASK-010 — Teacher sign-in, create-account, and app shell (web). Not started.
 
 ## Next Step
 
-Commit TASK-009 on `feat/require-teacher`, push and merge it. Then `/next-tasks TASK-010`. TASK-010 also owns several TASK-004 and TASK-005 Known Issues: the root `ErrorBoundary`, button sizes and hover colours, the Dialog CSP check, the `name` field at sign-up, and the bundle size. Still open from TASK-006: confirm `Secret scan` fails on a throwaway branch with a fabricated token, and that CI is green on `main`.
+Push `feat/teacher-shell` and open the PR for TASK-010 when you're ready. Then `/implement-task TASK-011`; its criteria already cover extending `validate.ts`'s union walk and keeping `updated_at` current (`.$onUpdate` or the service) (see the TASK-005 and TASK-007 entries). Still open from TASK-006: confirm `Secret scan` fails on a throwaway branch with a fabricated token, and that CI is green on `main`.

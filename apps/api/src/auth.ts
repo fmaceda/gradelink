@@ -1,3 +1,4 @@
+import { PASSWORD_MAX, PASSWORD_MIN } from "@gradelink/shared";
 import { betterAuth } from "better-auth";
 import { drizzleAdapter } from "better-auth/adapters/drizzle";
 import { haveIBeenPwned } from "better-auth/plugins/haveibeenpwned";
@@ -33,7 +34,12 @@ export const auth = betterAuth({
   baseURL: env.BETTER_AUTH_URL,
   secret: env.BETTER_AUTH_SECRET,
   database: drizzleAdapter(db, { provider: "pg", schema }),
-  emailAndPassword: { enabled: true, minPasswordLength: 15 },
+  // The same limits the web forms check (packages/shared teacher/account.ts).
+  emailAndPassword: {
+    enabled: true,
+    minPasswordLength: PASSWORD_MIN,
+    maxPasswordLength: PASSWORD_MAX,
+  },
   session: { expiresIn: 24 * ONE_HOUR_IN_SECONDS, updateAge: ONE_HOUR_IN_SECONDS },
   trustedOrigins:
     env.NODE_ENV === "development" ? [env.BETTER_AUTH_URL, VITE_DEV_ORIGIN] : [env.BETTER_AUTH_URL],

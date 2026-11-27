@@ -3,6 +3,8 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <!-- Express swaps in each response's CSP nonce (apps/api/src/app.ts, src/csp-nonce.ts). -->
+    <meta name="csp-nonce" content="__CSP_NONCE__" />
     <title>GradeLink</title>
   </head>
   <body>
